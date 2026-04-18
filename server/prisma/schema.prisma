@@ -16,6 +16,7 @@ model Lawyer {
   whatsapp  String?
   googleId  String?  @unique
   avatarUrl String?
+  password  String?  // null para usuários que entram via Google
 
   // Controle freemium: grátis enquanto faz cobranças pelo app
   lastChargeMadeAt DateTime?
