@@ -8,6 +8,7 @@ import schedulerRouter from './routes/scheduler.js'
 import dashboardRouter from './routes/dashboard.js'
 import clientsRouter from './routes/clients.js'
 import financeRouter from './routes/finance.js'
+import settingsRouter from './routes/settings.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -23,10 +24,11 @@ app.use('/api/scheduler', schedulerRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/clients', clientsRouter)
 app.use('/api/finance', financeRouter)
+app.use('/api/settings', settingsRouter)
 
-app.get('/api/hello', (_req, res) => {
-  res.json({ message: 'Hello from API' })
-})
+// ── Servir arquivos enviados (logos, áudios) ──────────────────────────────────
+const uploadsDir = join(__dirname, '../../uploads')
+if (existsSync(uploadsDir)) app.use('/uploads', express.static(uploadsDir))
 
 // ── Servir frontend em produção ───────────────────────────────────────────────
 const clientDist = join(__dirname, '../../client/dist')
