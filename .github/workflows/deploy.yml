@@ -1,0 +1,50 @@
+name: Deploy → Hostinger
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install --prefix client
+          npm install --prefix server
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Generate Prisma client
+        run: cd server && npx prisma generate
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            cd ${{ secrets.APP_PATH }}
+            git pull origin main
+            npm install
+            npm install --prefix client
+            npm install --prefix server
+            npm run build
+            cd server && npx prisma generate && npx prisma migrate deploy && cd ..
+            # hPanel reinicia o processo automaticamente ao detectar mudanças
+            touch tmp/restart.txt 2>/dev/null || true
