@@ -43,8 +43,20 @@ jobs:
     needs: build
 
     steps:
+      - name: Check SSH secrets
+        id: check
+        env:
+          HOST: ${{ secrets.HOST }}
+        run: |
+          if [ -n "$HOST" ]; then
+            echo "ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "ready=false" >> $GITHUB_OUTPUT
+            echo "SSH secrets não configurados — deploy ignorado."
+          fi
+
       - name: Deploy via SSH
-        if: ${{ secrets.HOST != '' }}
+        if: steps.check.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.HOST }}
@@ -60,7 +72,3 @@ jobs:
             npm run build --prefix client
             cd server && npx prisma generate && npx prisma migrate deploy && cd ..
             touch tmp/restart.txt 2>/dev/null || true
-
-      - name: Deploy skipped
-        if: ${{ secrets.HOST == '' }}
-        run: echo "SSH secrets não configurados — deploy ignorado. Configure HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_PORT e APP_PATH nos secrets do repositório."
