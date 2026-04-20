@@ -92,12 +92,15 @@ export default function LandingPage() {
       {/* ── Navbar ─────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-40 bg-navy-900 shadow-md">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-white font-bold text-xl tracking-tight">
-            Agendar<span className="text-gold-500">Adv</span>
-          </span>
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="AgendarAdv" className="h-9 w-9 object-contain" />
+            <span className="text-white font-bold text-xl tracking-tight">
+              Agendar<span className="text-brand-500">Adv</span>
+            </span>
+          </div>
           <button
             onClick={() => openModal('login')}
-            className="px-5 py-2 rounded-lg border border-gold-500 text-gold-400 text-sm font-medium hover:bg-gold-500 hover:text-navy-900 transition-colors"
+            className="px-5 py-2 rounded-lg border border-brand-500 text-brand-400 text-sm font-medium hover:bg-brand-500 hover:text-white transition-colors"
           >
             Entrar
           </button>
@@ -107,12 +110,12 @@ export default function LandingPage() {
       {/* ── Hero ───────────────────────────────────────────── */}
       <section className="bg-navy-900 pt-32 pb-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-block mb-6 px-4 py-1.5 rounded-full bg-gold-500/20 text-gold-400 text-sm font-medium">
+          <div className="inline-block mb-6 px-4 py-1.5 rounded-full bg-brand-500/20 text-brand-400 text-sm font-medium">
             Grátis para advogados que cobram pelo app
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-6">
             Mais consultas.<br />
-            <span className="text-gold-400">Menos caos.</span>
+            <span className="text-brand-400">Menos caos.</span>
           </h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-10">
             Centralize agenda, clientes, cobranças e histórico em uma só ferramenta.
@@ -121,7 +124,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={() => openModal('register')}
-              className="px-8 py-4 rounded-xl bg-gold-500 text-navy-900 font-bold text-lg hover:bg-gold-400 transition-colors shadow-lg"
+              className="px-8 py-4 rounded-xl bg-brand-500 text-navy-900 font-bold text-lg hover:bg-brand-400 transition-colors shadow-lg"
             >
               Começar Grátis
             </button>
@@ -196,7 +199,7 @@ export default function LandingPage() {
       <section className="py-20 px-6 bg-navy-900">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-white mb-4">
-            Simples assim: <span className="text-gold-400">use e não pague nada</span>
+            Simples assim: <span className="text-brand-400">use e não pague nada</span>
           </h2>
           <p className="text-gray-300 mb-10 text-lg">
             O AgendarAdv é gratuito para advogados que realizam cobranças pelo aplicativo.
@@ -204,17 +207,17 @@ export default function LandingPage() {
           </p>
           <div className="bg-white/10 rounded-2xl p-8 border border-white/20 max-w-sm mx-auto">
             <div className="text-5xl font-extrabold text-white mb-1">R$ 0</div>
-            <div className="text-gold-400 font-medium mb-6">para sempre, ao usar cobranças</div>
+            <div className="text-brand-400 font-medium mb-6">para sempre, ao usar cobranças</div>
             <ul className="text-gray-200 text-sm space-y-3 text-left mb-8">
               {['Agenda ilimitada', 'Clientes ilimitados', 'Agendador público personalizado', 'Dashboard e relatórios', 'Integração com Asaas', 'Alertas por WhatsApp e email'].map(i => (
                 <li key={i} className="flex items-center gap-2">
-                  <span className="text-gold-400">✓</span> {i}
+                  <span className="text-brand-400">✓</span> {i}
                 </li>
               ))}
             </ul>
             <button
               onClick={() => openModal('register')}
-              className="w-full py-3 rounded-xl bg-gold-500 text-navy-900 font-bold hover:bg-gold-400 transition-colors"
+              className="w-full py-3 rounded-xl bg-brand-500 text-navy-900 font-bold hover:bg-brand-400 transition-colors"
             >
               Criar conta grátis
             </button>
@@ -237,9 +240,12 @@ export default function LandingPage() {
             {/* Header */}
             <div className="bg-navy-900 px-8 py-6">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-white font-bold text-xl">
-                  Agendar<span className="text-gold-400">Adv</span>
-                </span>
+                <div className="flex items-center gap-2">
+                  <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
+                  <span className="text-white font-bold text-xl">
+                    Agendar<span className="text-brand-400">Adv</span>
+                  </span>
+                </div>
                 <button onClick={() => setModal(null)} className="text-gray-400 hover:text-white text-xl leading-none">×</button>
               </div>
               <p className="text-gray-300 text-sm">

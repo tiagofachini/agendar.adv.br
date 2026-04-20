@@ -74,7 +74,7 @@ export default function Finance() {
       {balance?.balance != null && (
         <div className="bg-navy-900 rounded-2xl p-6 mb-6 flex items-center justify-between">
           <div>
-            <p className="text-gold-400 text-sm font-medium">Saldo disponível em conta</p>
+            <p className="text-brand-400 text-sm font-medium">Saldo disponível em conta</p>
             <p className="text-white text-3xl font-extrabold mt-1">{fmt(balance.balance)}</p>
             <p className="text-gray-400 text-xs mt-1">via Asaas</p>
           </div>

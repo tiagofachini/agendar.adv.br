@@ -11,7 +11,7 @@ const PERIODS = [
 
 function MetricBlock({ value, label, sub, accent }) {
   return (
-    <div className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ${accent ? 'border-l-4 border-l-gold-500' : ''}`}>
+    <div className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ${accent ? 'border-l-4 border-l-brand-500' : ''}`}>
       <div className="text-4xl font-extrabold text-navy-900 mb-1">{value}</div>
       <div className="text-sm font-semibold text-gray-700">{label}</div>
       {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
@@ -51,8 +51,8 @@ function Countdown({ appointment }) {
 
   return (
     <div className="bg-navy-900 rounded-2xl p-6 shadow-sm text-white">
-      <div className="text-xs text-gold-400 font-semibold uppercase tracking-wide mb-2">Próximo compromisso</div>
-      <div className="text-5xl font-extrabold text-gold-400 mb-3 tabular-nums">{remaining}</div>
+      <div className="text-xs text-brand-400 font-semibold uppercase tracking-wide mb-2">Próximo compromisso</div>
+      <div className="text-5xl font-extrabold text-brand-400 mb-3 tabular-nums">{remaining}</div>
       <div className="font-semibold text-lg">{appointment.clientName}</div>
       <div className="text-gray-300 text-sm">{appointment.specialty}</div>
       <div className="text-gray-400 text-xs mt-1">

@@ -19,9 +19,10 @@ export default function AppLayout() {
 
   const Sidebar = () => (
     <aside className="flex flex-col h-full bg-navy-900 w-64">
-      <div className="px-6 py-5 border-b border-white/10">
+      <div className="px-6 py-5 border-b border-white/10 flex items-center gap-3">
+        <img src="/logo.png" alt="AgendarAdv" className="h-8 w-8 object-contain flex-shrink-0" />
         <span className="text-white font-bold text-xl tracking-tight">
-          Agendar<span className="text-gold-500">Adv</span>
+          Agendar<span className="text-brand-500">Adv</span>
         </span>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -33,7 +34,7 @@ export default function AppLayout() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
               ${isActive
-                ? 'bg-gold-500 text-navy-900'
+                ? 'bg-brand-500 text-white'
                 : 'text-gray-300 hover:bg-white/10 hover:text-white'
               }`
             }
@@ -47,7 +48,7 @@ export default function AppLayout() {
         <div className="flex items-center gap-3 mb-3 px-2">
           {lawyer?.avatarUrl
             ? <img src={lawyer.avatarUrl} alt="" className="w-8 h-8 rounded-full" />
-            : <div className="w-8 h-8 rounded-full bg-gold-500 flex items-center justify-center text-navy-900 font-bold text-sm">
+            : <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center text-white font-bold text-sm">
                 {lawyer?.name?.[0]?.toUpperCase()}
               </div>
           }
@@ -86,9 +87,10 @@ export default function AppLayout() {
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar mobile */}
-        <header className="md:hidden flex items-center gap-4 bg-navy-900 px-4 py-3.5">
+        <header className="md:hidden flex items-center gap-3 bg-navy-900 px-4 py-3.5">
           <button onClick={() => setSidebarOpen(true)} className="text-white text-xl">☰</button>
-          <span className="text-white font-bold">Agendar<span className="text-gold-500">Adv</span></span>
+          <img src="/logo.png" alt="" className="h-7 w-7 object-contain" />
+          <span className="text-white font-bold">Agendar<span className="text-brand-500">Adv</span></span>
         </header>
 
         {/* Content */}

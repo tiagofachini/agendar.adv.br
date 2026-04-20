@@ -48,7 +48,7 @@ function Calendar({ workDays, selectedDate, onSelect, currentMonth, onMonthChang
                 'h-9 w-full rounded-lg text-sm font-medium transition-colors',
                 disabled ? 'text-gray-300 cursor-default' : 'cursor-pointer hover:bg-navy-50',
                 isSelected ? 'bg-navy-900 text-white hover:bg-navy-800' : '',
-                isToday(day) && !isSelected ? 'border border-gold-500 text-navy-900' : '',
+                isToday(day) && !isSelected ? 'border border-brand-500 text-navy-900' : '',
                 !disabled && !isSelected ? 'text-gray-800' : '',
               ].join(' ')}
             >
@@ -173,7 +173,7 @@ export default function Scheduler() {
         {info.logoUrl && <img src={info.logoUrl} alt="logo" className="h-12 mx-auto mb-3 rounded" />}
         <h1 className="text-white text-2xl font-bold">{info.lawyerName}</h1>
         {info.highlightMessage && (
-          <p className="text-gold-400 text-sm mt-2 max-w-xs mx-auto">{info.highlightMessage}</p>
+          <p className="text-brand-400 text-sm mt-2 max-w-xs mx-auto">{info.highlightMessage}</p>
         )}
         {info.hourlyRate && (
           <p className="text-gray-300 text-sm mt-1">
@@ -356,7 +356,7 @@ export default function Scheduler() {
               <button
                 onClick={handleBook}
                 disabled={booking}
-                className="flex-1 py-3 rounded-xl bg-gold-500 text-navy-900 font-bold disabled:opacity-50 hover:bg-gold-400 transition-colors"
+                className="flex-1 py-3 rounded-xl bg-brand-500 text-navy-900 font-bold disabled:opacity-50 hover:bg-brand-400 transition-colors"
               >
                 {booking ? 'Aguarde...' : 'Confirmar →'}
               </button>
