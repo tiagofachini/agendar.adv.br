@@ -66,8 +66,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            . "$NVM_DIR/nvm.sh"
             cd ${{ secrets.APP_PATH }}
             git pull origin main
             npm install
