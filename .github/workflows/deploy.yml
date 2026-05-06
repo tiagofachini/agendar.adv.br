@@ -1,4 +1,4 @@
-name: Build Check
+name: Build & Deploy
 
 on:
   push:
@@ -8,8 +8,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  build:
-    name: Build
+  deploy:
+    name: Build e Deploy via FTP
     runs-on: ubuntu-latest
 
     steps:
@@ -21,11 +21,18 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies
+      - name: Instalar dependências
         run: npm install && npm install --prefix client
 
       - name: Build frontend
         run: npm --prefix client run build
 
-      - name: Build OK
-        run: echo "✓ Build concluído sem erros"
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          local-dir: ./client/dist/
+          server-dir: /public_html/
+          dangerous-clean-slate: false
