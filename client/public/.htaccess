@@ -1,13 +1,4 @@
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-
-  RewriteCond %{HTTP_HOST} ^www\.agendar\.adv\.br$ [NC]
-  RewriteRule ^(.*)$ https://agendar.adv.br/$1 [R=301,L]
-
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteRule ^ - [L]
-
-  RewriteRule ^ /index.html [L]
-</IfModule>
+Options -MultiViews
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.html [QSA,L]
