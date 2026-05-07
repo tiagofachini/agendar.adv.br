@@ -53,10 +53,15 @@
 - Link direto para o SQL editor: `https://supabase.com/dashboard/project/<PROJECT_REF>/sql/new`
 
 ### Edge Functions
-- Criadas em `supabase/functions/<nome>/index.ts`.
-- Deploy manual pelo usuário: `npx supabase functions deploy <nome> --project-ref <PROJECT_REF>`.
-- Variáveis de ambiente configuradas no Dashboard: `https://supabase.com/dashboard/project/<PROJECT_REF>/functions`.
-- Sempre validar inputs **antes** de consumir APIs pagas (Anthropic, Resend, etc.) — nunca consumir crédito para depois falhar em validação.
+- Criadas em `supabase/functions/<nome>/index.ts` e versionadas no repositório.
+- **Deploy via Dashboard** (modelo padrão): https://supabase.com/dashboard/project/nfgexlsfmyfypueslzxo/functions
+  1. Clicar em "Create a new function" (ou editar a existente)
+  2. Usar o nome exato da pasta (ex: `appointments`)
+  3. Colar o conteúdo do `index.ts` correspondente
+  4. Clicar em "Deploy function"
+- As variáveis `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` já existem automaticamente no ambiente — não precisam ser configuradas manualmente.
+- Variáveis externas (ex: `RESEND_API_KEY`) configurar em: https://supabase.com/dashboard/project/nfgexlsfmyfypueslzxo/functions (aba "Secrets")
+- Sempre validar inputs **antes** de consumir APIs pagas (Resend, Asaas, etc.) — nunca consumir crédito para depois falhar em validação.
 
 ---
 
