@@ -37,21 +37,24 @@ DECLARE
 BEGIN
   new_lawyer_id := gen_random_uuid()::text;
 
-  INSERT INTO "Lawyer" (id, auth_id, name, email, whatsapp)
+  INSERT INTO "Lawyer" (id, auth_id, name, email, whatsapp, "createdAt", "updatedAt")
   VALUES (
     new_lawyer_id,
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     NEW.email,
-    NEW.raw_user_meta_data->>'whatsapp'
+    NEW.raw_user_meta_data->>'whatsapp',
+    NOW(),
+    NOW()
   )
   ON CONFLICT (auth_id) DO UPDATE SET
-    name  = EXCLUDED.name,
-    email = EXCLUDED.email
+    name      = EXCLUDED.name,
+    email     = EXCLUDED.email,
+    "updatedAt" = NOW()
   RETURNING id INTO new_lawyer_id;
 
-  INSERT INTO "LawyerSettings" (id, "lawyerId", "workDays")
-  VALUES (gen_random_uuid()::text, new_lawyer_id, ARRAY[1,2,3,4,5])
+  INSERT INTO "LawyerSettings" (id, "lawyerId", "workDays", "createdAt", "updatedAt")
+  VALUES (gen_random_uuid()::text, new_lawyer_id, ARRAY[1,2,3,4,5], NOW(), NOW())
   ON CONFLICT ("lawyerId") DO NOTHING;
 
   RETURN NEW;
