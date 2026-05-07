@@ -24,6 +24,10 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
+function errMsg(err) {
+  return err?.response?.data?.error || err?.message || 'Erro ao salvar. Tente novamente.'
+}
+
 function SaveBtn({ loading, saved }) {
   return (
     <button type="submit" disabled={loading}
@@ -33,7 +37,7 @@ function SaveBtn({ loading, saved }) {
   )
 }
 
-function Section({ title, desc, children, onSubmit, loading, saved }) {
+function Section({ title, desc, children, onSubmit, loading, saved, error }) {
   return (
     <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow-sm p-6 mb-5">
       <div className="mb-5">
@@ -41,6 +45,11 @@ function Section({ title, desc, children, onSubmit, loading, saved }) {
         {desc && <p className="text-sm text-gray-500 mt-0.5">{desc}</p>}
       </div>
       <div className="space-y-4">{children}</div>
+      {error && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          {error}
+        </div>
+      )}
       <div className="mt-5 flex justify-end">
         <SaveBtn loading={loading} saved={saved} />
       </div>
@@ -92,7 +101,7 @@ function LogoUpload({ currentUrl, lawyerId, onChange }) {
             <p className="text-sm font-medium text-gray-600">
               {currentUrl ? 'Clique para trocar a logo' : 'Clique para enviar a logo do escritório'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">PNG, JPG ou SVG — máximo 5MB</p>
+            <p className="text-xs text-gray-400 mt-1">PNG, JPG ou SVG — máximo 5MB. Clique em Salvar após o upload.</p>
           </>
         )}
       </label>
@@ -107,15 +116,21 @@ function AccountSection({ data, onSaved }) {
   const [form, setForm] = useState({ name: a.name || '', email: a.email || '', whatsapp: a.whatsapp || '' })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   const save = async (e) => {
-    e.preventDefault(); setLoading(true); setSaved(false)
-    await api.put('/settings/account', form).then(() => { setSaved(true); onSaved() }).catch(console.error)
+    e.preventDefault(); setLoading(true); setSaved(false); setError('')
+    try {
+      await api.put('/settings/account', form)
+      setSaved(true); onSaved()
+    } catch (err) {
+      setError(errMsg(err))
+    }
     setLoading(false)
   }
 
   return (
-    <Section title="Dados da conta" onSubmit={save} loading={loading} saved={saved}>
+    <Section title="Dados da conta" onSubmit={save} loading={loading} saved={saved} error={error}>
       <Field label="Nome completo">
         <input className={inputCls} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
       </Field>
@@ -143,6 +158,7 @@ function OfficeSection({ data }) {
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
   const [cepLoading, setCepLoading] = useState(false)
   const [specSearch, setSpecSearch] = useState('')
 
@@ -164,13 +180,18 @@ function OfficeSection({ data }) {
     }))
 
   const save = async (e) => {
-    e.preventDefault(); setLoading(true); setSaved(false)
-    await api.put('/settings/office', form).then(() => setSaved(true)).catch(console.error)
+    e.preventDefault(); setLoading(true); setSaved(false); setError('')
+    try {
+      await api.put('/settings/office', form)
+      setSaved(true)
+    } catch (err) {
+      setError(errMsg(err))
+    }
     setLoading(false)
   }
 
   return (
-    <Section title="Dados do escritório" onSubmit={save} loading={loading} saved={saved}>
+    <Section title="Dados do escritório" onSubmit={save} loading={loading} saved={saved} error={error}>
       <Field label="Logo do escritório">
         <LogoUpload
           currentUrl={form.logoUrl}
@@ -243,14 +264,17 @@ function SchedulerSection({ data }) {
 
   const save = async (e) => {
     e.preventDefault(); setLoading(true); setSaved(false); setError('')
-    await api.put('/settings/scheduler', form)
-      .then(() => setSaved(true))
-      .catch(err => setError(err.response?.data?.error || 'Erro ao salvar'))
+    try {
+      await api.put('/settings/scheduler', form)
+      setSaved(true)
+    } catch (err) {
+      setError(err.response?.data?.error || errMsg(err))
+    }
     setLoading(false)
   }
 
   return (
-    <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved}>
+    <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved} error={error}>
       <Field label="Endereço personalizado">
         <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-navy-700">
           <span className="px-3 text-gray-400 text-sm bg-gray-50 border-r border-gray-300 py-2.5 whitespace-nowrap">
@@ -278,7 +302,6 @@ function SchedulerSection({ data }) {
           onChange={e => setForm({ ...form, highlightMessage: e.target.value })}
           placeholder="Ex: Primeira consulta com desconto!" />
       </Field>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
     </Section>
   )
 }
@@ -294,6 +317,7 @@ function CalendarSection({ data }) {
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   const toggleDay = (d) =>
     setForm(f => ({
@@ -302,13 +326,18 @@ function CalendarSection({ data }) {
     }))
 
   const save = async (e) => {
-    e.preventDefault(); setLoading(true); setSaved(false)
-    await api.put('/settings/calendar', form).then(() => setSaved(true)).catch(console.error)
+    e.preventDefault(); setLoading(true); setSaved(false); setError('')
+    try {
+      await api.put('/settings/calendar', form)
+      setSaved(true)
+    } catch (err) {
+      setError(errMsg(err))
+    }
     setLoading(false)
   }
 
   return (
-    <Section title="Configurações da agenda" onSubmit={save} loading={loading} saved={saved}>
+    <Section title="Configurações da agenda" onSubmit={save} loading={loading} saved={saved} error={error}>
       <Field label="Dias de trabalho">
         <div className="flex gap-2 flex-wrap">
           {DAYS.map((d, i) => (
@@ -346,20 +375,23 @@ function FinancialSection({ data, onSaved }) {
   const [showInput, setShowInput] = useState(!f.asaasApiKey)
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   const save = async (e) => {
     e.preventDefault()
     if (!realKey) return
-    setLoading(true); setSaved(false)
-    await api.put('/settings/financial', { asaasApiKey: realKey })
-      .then(() => { setSaved(true); setShowInput(false); setRealKey(''); onSaved() })
-      .catch(console.error)
+    setLoading(true); setSaved(false); setError('')
+    try {
+      await api.put('/settings/financial', { asaasApiKey: realKey })
+      setSaved(true); setShowInput(false); setRealKey(''); onSaved()
+    } catch (err) {
+      setError(errMsg(err))
+    }
     setLoading(false)
   }
 
   return (
     <form onSubmit={save} className="space-y-5">
-      {/* Como funciona */}
       <div className="bg-navy-900 rounded-2xl p-6 text-white">
         <h3 className="font-bold text-lg mb-4">Como funciona o recebimento?</h3>
         <div className="space-y-4">
@@ -376,7 +408,6 @@ function FinancialSection({ data, onSaved }) {
         </div>
       </div>
 
-      {/* Passo a passo */}
       <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
         <h3 className="font-bold text-navy-900 text-lg">Configure o Asaas em 3 passos</h3>
         <ol className="space-y-3">
@@ -400,7 +431,6 @@ function FinancialSection({ data, onSaved }) {
         </a>
       </div>
 
-      {/* Campo da API Key */}
       <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
         <h3 className="font-bold text-navy-900 text-lg">Sua API Key do Asaas</h3>
         {!showInput && f.asaasApiKey ? (
@@ -417,6 +447,7 @@ function FinancialSection({ data, onSaved }) {
           <>
             <input className={inputCls} type="password" value={realKey}
               onChange={e => setRealKey(e.target.value)} placeholder="$aact_..." />
+            {error && <p className="text-red-500 text-sm">{error}</p>}
             <div className="flex justify-end">
               <SaveBtn loading={loading} saved={saved} />
             </div>
@@ -438,10 +469,16 @@ function AlertsSection({ data }) {
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   const save = async (e) => {
-    e.preventDefault(); setLoading(true); setSaved(false)
-    await api.put('/settings/alerts', form).then(() => setSaved(true)).catch(console.error)
+    e.preventDefault(); setLoading(true); setSaved(false); setError('')
+    try {
+      await api.put('/settings/alerts', form)
+      setSaved(true)
+    } catch (err) {
+      setError(errMsg(err))
+    }
     setLoading(false)
   }
 
@@ -456,7 +493,7 @@ function AlertsSection({ data }) {
   )
 
   return (
-    <Section title="Alertas de agendamento" desc="Receba avisos dos seus agendamentos." onSubmit={save} loading={loading} saved={saved}>
+    <Section title="Alertas de agendamento" desc="Receba avisos dos seus agendamentos." onSubmit={save} loading={loading} saved={saved} error={error}>
       <div className="bg-gray-50 rounded-xl px-4">
         <Toggle field="newBookingByEmail"      label="Novo agendamento por email" />
         <Toggle field="newBookingByWhatsapp"   label="Novo agendamento por WhatsApp" />
@@ -471,9 +508,23 @@ function AlertsSection({ data }) {
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('account')
   const [settingsData, setSettingsData] = useState(null)
+  const [loadError, setLoadError] = useState('')
 
-  const load = () => api.get('/settings').then(r => setSettingsData(r.data)).catch(console.error)
+  const load = () => {
+    setLoadError('')
+    api.get('/settings')
+      .then(r => setSettingsData(r.data))
+      .catch(err => setLoadError(errMsg(err)))
+  }
+
   useEffect(() => { load() }, [])
+
+  if (loadError) return (
+    <div className="p-6 flex flex-col items-center justify-center min-h-96 gap-4">
+      <p className="text-red-600 font-medium">{loadError}</p>
+      <button onClick={load} className="px-4 py-2 rounded-lg bg-navy-900 text-white text-sm">Tentar novamente</button>
+    </div>
+  )
 
   if (!settingsData) return (
     <div className="p-6 flex items-center justify-center min-h-96">

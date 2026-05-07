@@ -3,51 +3,47 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
-async function fetchLawyer(session) {
-  if (!session) return null
+async function loadLawyerData(userId) {
   const { data: lawyerData } = await supabase
-    .from('Lawyer')
-    .select('*')
-    .eq('auth_id', session.user.id)
-    .maybeSingle()
+    .from('Lawyer').select('*').eq('auth_id', userId).maybeSingle()
   if (!lawyerData) return null
   const { data: settings } = await supabase
-    .from('LawyerSettings')
-    .select('*')
-    .eq('lawyerId', lawyerData.id)
-    .maybeSingle()
+    .from('LawyerSettings').select('*').eq('lawyerId', lawyerData.id).maybeSingle()
   return { ...lawyerData, settings }
 }
 
 export function AuthProvider({ children }) {
+  // undefined = ainda não verificado; null = sem sessão; objeto = sessão ativa
+  const [session, setSession] = useState(undefined)
   const [lawyer, setLawyer] = useState(null)
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
 
-    // Leitura imediata do localStorage — não depende de evento
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (cancelled) return
-      try {
-        setLawyer(await fetchLawyer(session))
-      } catch {
-        setLawyer(null)
-      } finally {
-        setLoading(false)
-      }
-    })
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        if (cancelled) return
+        setSession(session ?? null)
+        if (session) {
+          loadLawyerData(session.user.id)
+            .then(data => { if (!cancelled) setLawyer(data) })
+            .catch(() => { if (!cancelled) setLawyer(null) })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSession(null)
+      })
 
-    // Escuta apenas mudanças após a carga inicial (login, logout, refresh de token)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION') return // já tratado pelo getSession acima
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') return
       if (cancelled) return
-      try {
-        setLawyer(await fetchLawyer(session))
-      } catch {
+      setSession(session ?? null)
+      if (session) {
+        loadLawyerData(session.user.id)
+          .then(data => { if (!cancelled) setLawyer(data) })
+          .catch(() => { if (!cancelled) setLawyer(null) })
+      } else {
         setLawyer(null)
-      } finally {
-        setLoading(false)
       }
     })
 
@@ -60,7 +56,13 @@ export function AuthProvider({ children }) {
   const logout = () => supabase.auth.signOut()
 
   return (
-    <AuthContext.Provider value={{ lawyer, loading, logout, setLawyer }}>
+    <AuthContext.Provider value={{
+      session,
+      lawyer,
+      loading: session === undefined,
+      logout,
+      setLawyer,
+    }}>
       {children}
     </AuthContext.Provider>
   )
