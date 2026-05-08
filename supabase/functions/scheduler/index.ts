@@ -28,17 +28,27 @@ Deno.serve(async (req) => {
   try {
     const { data: s, error: sErr } = await sb
       .from('LawyerSettings')
-      .select('*, lawyer:Lawyer(id,name)')
+      .select('*')
       .eq('schedulerSlug', slug)
-      .single()
+      .maybeSingle()
 
     if (sErr || !s) {
       return Response.json({ error: 'Agenda não encontrada' }, { status: 404, headers: cors })
     }
 
-    const lawyer = s.lawyer as { id: string; name: string }
+    const { data: lawyerRow } = await sb
+      .from('Lawyer')
+      .select('id,name')
+      .eq('id', s.lawyerId)
+      .maybeSingle()
 
-    // ── GET /scheduler/:slug — public profile ────────────────────────────────
+    if (!lawyerRow) {
+      return Response.json({ error: 'Agenda não encontrada' }, { status: 404, headers: cors })
+    }
+
+    const lawyer = lawyerRow as { id: string; name: string }
+
+    // ── GET /scheduler/:slug — public profile ──────────────────────────────────────────────
     if (req.method === 'GET' && !action) {
       return Response.json(
         {
@@ -55,7 +65,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // ── GET /scheduler/:slug/slots?date=YYYY-MM-DD ───────────────────────────
+    // ── GET /scheduler/:slug/slots?date=YYYY-MM-DD ───────────────────────────────────────
     if (req.method === 'GET' && action === 'slots') {
       const date = url.searchParams.get('date')
       if (!date) return Response.json({ error: 'date required' }, { status: 400, headers: cors })
@@ -93,7 +103,7 @@ Deno.serve(async (req) => {
       return Response.json({ slots }, { headers: cors })
     }
 
-    // ── POST /scheduler/:slug/book ───────────────────────────────────────────
+    // ── POST /scheduler/:slug/book ───────────────────────────────────────────────────────────────────
     if (req.method === 'POST' && action === 'book') {
       const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot } =
         await req.json()
