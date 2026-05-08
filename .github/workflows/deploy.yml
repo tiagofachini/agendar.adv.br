@@ -27,16 +27,21 @@ jobs:
       - name: Build frontend
         run: npm --prefix client run build
 
+      - name: Instalar lftp
+        run: sudo apt-get install -y lftp
+
       - name: Deploy via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          protocol: ftps
-          port: 21
-          local-dir: ./client/dist/
-          server-dir: /public_html/
-          dangerous-clean-slate: false
-          exclude: |
-            logo.png
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          lftp -u "$FTP_USER,$FTP_PASS" \
+            -e "set ftp:ssl-force true; \
+                set ssl:verify-certificate false; \
+                set xfer:use-temp-file false; \
+                set net:max-retries 3; \
+                set net:reconnect-interval-base 5; \
+                mirror -R --no-perms --parallel=3 --exclude logo.png client/dist/ /public_html/; \
+                quit" \
+            ftps://$FTP_HOST
