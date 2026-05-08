@@ -109,6 +109,7 @@ Deno.serve(async (req) => {
 
       if (section === 'scheduler') {
         const body = await req.json()
+        if (body.schedulerSlug) body.schedulerSlug = String(body.schedulerSlug).toLowerCase()
         const error = await upsertSettings(body)
         if (error) {
           if (error.code === '23505')
