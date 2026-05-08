@@ -47,13 +47,14 @@ export default function Finance() {
   const [data, setData] = useState(null)
   const [balance, setBalance] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    setLoading(true)
+    setLoading(true); setError('')
     api.get(`/finance?status=${tab}&page=${page}`)
       .then((r) => setData(r.data))
-      .catch(console.error)
+      .catch((err) => setError(err.response?.data?.error || 'Erro ao carregar financeiro'))
       .finally(() => setLoading(false))
   }, [tab, page])
 
@@ -62,6 +63,11 @@ export default function Finance() {
   }, [])
 
   const handleTabChange = (v) => { setTab(v); setPage(1) }
+
+  const summary = data?.summary ?? { paid: 0, pending: 0, overdue: 0, cancelled: 0 }
+  const payments = data?.payments ?? []
+  const chartData = data?.chartData ?? []
+  const pages = data?.pages ?? 1
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -82,22 +88,24 @@ export default function Finance() {
         </div>
       )}
 
-      {/* Resumo */}
-      {data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <SummaryCard label="Recebido"  value={data.summary.paid}      color="border-l-green-500" />
-          <SummaryCard label="A receber" value={data.summary.pending}   color="border-l-yellow-500" />
-          <SummaryCard label="Vencido"   value={data.summary.overdue}   color="border-l-red-500" />
-          <SummaryCard label="Cancelado" value={data.summary.cancelled} color="border-l-gray-300" />
-        </div>
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
       )}
 
+      {/* Resumo */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <SummaryCard label="Recebido"  value={summary.paid}      color="border-l-green-500" />
+        <SummaryCard label="A receber" value={summary.pending}   color="border-l-yellow-500" />
+        <SummaryCard label="Vencido"   value={summary.overdue}   color="border-l-red-500" />
+        <SummaryCard label="Cancelado" value={summary.cancelled} color="border-l-gray-300" />
+      </div>
+
       {/* Gráfico */}
-      {data?.chartData && (
+      {chartData.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
           <h3 className="font-semibold text-navy-900 mb-4">Recebidos — últimos 6 meses</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={data.chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor="#1e3a5f" stopOpacity={0.15} />
@@ -133,28 +141,29 @@ export default function Finance() {
           <div className="p-6 space-y-3">
             {Array(5).fill(0).map((_, i) => <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse" />)}
           </div>
-        ) : data?.payments?.length === 0 ? (
+        ) : payments.length === 0 ? (
           <div className="py-16 text-center text-gray-400">
             <div className="text-4xl mb-3">💳</div>
             <p>Nenhum pagamento encontrado.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {data.payments.map((p) => {
-              const s = STATUS_STYLE[p.status] || STATUS_STYLE.CANCELLED
+            {payments.map((p) => {
+              const st = STATUS_STYLE[p.status] || STATUS_STYLE.CANCELLED
+              const apptDate = p.appointment?.date
               return (
                 <div key={p.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-navy-900 truncate">{p.client?.name || 'Cliente não vinculado'}</p>
                     <p className="text-xs text-gray-400">
                       {p.appointment?.specialty || '—'} &bull;{' '}
-                      {p.appointment?.date
-                        ? format(new Date(p.appointment.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                      {apptDate
+                        ? format(new Date(apptDate), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
                         : format(new Date(p.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 ml-4">
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${s.color}`}>{s.label}</span>
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${st.color}`}>{st.label}</span>
                     <span className="font-bold text-navy-900 whitespace-nowrap">{fmt(p.amount)}</span>
                   </div>
                 </div>
@@ -164,12 +173,12 @@ export default function Finance() {
         )}
 
         {/* Paginação */}
-        {data && data.pages > 1 && (
+        {pages > 1 && (
           <div className="flex items-center justify-center gap-3 py-4 border-t border-gray-100">
             <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
               className="px-4 py-2 text-sm rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">← Anterior</button>
-            <span className="text-sm text-gray-500">{page} / {data.pages}</span>
-            <button disabled={page >= data.pages} onClick={() => setPage(p => p + 1)}
+            <span className="text-sm text-gray-500">{page} / {pages}</span>
+            <button disabled={page >= pages} onClick={() => setPage(p => p + 1)}
               className="px-4 py-2 text-sm rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50">Próxima →</button>
           </div>
         )}

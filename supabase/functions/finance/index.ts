@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
 const ASAAS_URL = 'https://api.asaas.com/v3'
@@ -45,23 +46,23 @@ Deno.serve(async (req) => {
       .from('Payment')
       .select('*, client:Client(name,email), appointment:Appointment(specialty,date)', { count: 'exact' })
       .order('createdAt', { ascending: false })
-    if (status && status !== 'all') q = q.eq('status', status)
+    if (status) q = q.eq('status', status)
 
     const { data: payments, error, count } = await q.range(from, from + pageSize - 1)
     if (error) throw error
 
-    // ── Totals (all statuses) ────────────────────────────────────────────────
+    // ── Totals ────────────────────────────────────────────────────────────────
     const { data: all } = await sb.from('Payment').select('status,amount')
-    const totals = { paid: 0, pending: 0, overdue: 0, cancelled: 0 }
+    const summary = { paid: 0, pending: 0, overdue: 0, cancelled: 0 }
     for (const p of all ?? []) {
       const amt = parseFloat(p.amount)
-      if (p.status === 'PAID') totals.paid += amt
-      else if (p.status === 'PENDING') totals.pending += amt
-      else if (p.status === 'OVERDUE') totals.overdue += amt
-      else if (p.status === 'CANCELLED') totals.cancelled += amt
+      if (p.status === 'PAID')        summary.paid      += amt
+      else if (p.status === 'PENDING') summary.pending   += amt
+      else if (p.status === 'OVERDUE') summary.overdue   += amt
+      else if (p.status === 'CANCELLED') summary.cancelled += amt
     }
 
-    // ── Chart: last 6 months of PAID payments ────────────────────────────────
+    // ── Chart: últimos 6 meses de pagamentos PAID ─────────────────────────────
     const sixAgo = new Date()
     sixAgo.setMonth(sixAgo.getMonth() - 6)
     const { data: paid } = await sb
@@ -77,15 +78,12 @@ Deno.serve(async (req) => {
     }
     const chartData = Object.entries(byMonth)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, total]) => ({ month, total }))
+      .map(([month, value]) => ({ month, value }))
+
+    const pages = Math.ceil((count ?? 0) / pageSize)
 
     return Response.json(
-      {
-        payments,
-        total: totals,
-        chartData,
-        pagination: { page, total: count ?? 0, pages: Math.ceil((count ?? 0) / pageSize) },
-      },
+      { payments: payments ?? [], summary, chartData, pages, page },
       { headers: cors }
     )
   } catch (err) {
