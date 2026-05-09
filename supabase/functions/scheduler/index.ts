@@ -13,9 +13,11 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url)
   const parts = url.pathname.split('/').filter(Boolean)
-  // /functions/v1/scheduler/:slug[/slots|book]
-  const slug = parts[3]
-  const action = parts[4] // 'slots' | 'book' | undefined
+  // Supabase pode passar o caminho completo (/functions/v1/scheduler/slug)
+  // ou já sem o prefixo (/slug). Localiza o slug após 'scheduler', ou usa parts[0].
+  const schedulerIdx = parts.indexOf('scheduler')
+  const slug   = schedulerIdx >= 0 ? parts[schedulerIdx + 1] : parts[0]
+  const action = schedulerIdx >= 0 ? parts[schedulerIdx + 2] : parts[1]
 
   if (!slug) return new Response('Not Found', { status: 404, headers: cors })
 
