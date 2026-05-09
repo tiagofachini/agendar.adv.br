@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
         await sb.from('Appointment').update({ status: 'CONFIRMED' }).eq('id', appt.id)
       }
 
-      const RESEND_KEY = Deno.env.get('RESEND_API_KEY')
+      const RESEND_KEY = Deno.env.get('RESEND_API_KEY_AGENDAR')
       if (RESEND_KEY) {
         try {
           const apptDateObj = new Date(apptDate)
