@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const { data: s, error: sErr } = await sb
       .from('LawyerSettings')
       .select('*')
-      .ilike('schedulerSlug', slug.toLowerCase())
+      .eq('schedulerSlug', slug.toLowerCase())
       .maybeSingle()
 
     if (sErr || !s) {
