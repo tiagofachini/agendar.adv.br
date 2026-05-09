@@ -66,6 +66,14 @@ function Field({ label, children }) {
   )
 }
 
+function InfoBlock({ children }) {
+  return (
+    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-1.5 text-sm leading-relaxed text-gray-600">
+      {children}
+    </div>
+  )
+}
+
 const inputCls = 'w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700'
 
 function LogoUpload({ currentUrl, lawyerId, onChange }) {
@@ -136,6 +144,10 @@ function AccountSection({ data, onSaved }) {
 
   return (
     <Section title="Dados da conta" onSubmit={save} loading={loading} saved={saved} error={error}>
+      <InfoBlock>
+        <p className="font-semibold text-navy-900">Seus dados de identificação</p>
+        <p>Seu nome aparece na página pública de agendamento, para que os clientes saibam com quem estão marcando consulta. O email é usado para login e notificações. O WhatsApp pode ser utilizado para alertas instantâneos quando um agendamento for feito ou cancelado.</p>
+      </InfoBlock>
       <Field label="Nome completo">
         <input className={inputCls} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
       </Field>
@@ -207,6 +219,11 @@ function OfficeSection({ data, onSaved }) {
 
   return (
     <Section title="Dados do escritório" onSubmit={save} loading={loading} saved={saved} error={error}>
+      <InfoBlock>
+        <p className="font-semibold text-navy-900">Sua vitrine profissional</p>
+        <p>Estas informações aparecem na sua página pública de agendamento. Uma logo bem cuidada e as especialidades corretas aumentam a confiança do cliente antes mesmo do primeiro contato. O endereço completo demonstra profissionalismo e facilita que o cliente saiba onde ficará a consulta presencial.</p>
+        <p className="text-xs text-blue-600 font-medium">Dica: selecione apenas as especialidades que você realmente atende — isso ajuda o cliente a confirmar que você é o advogado certo para o caso dele.</p>
+      </InfoBlock>
       <Field label="Logo do escritório">
         <LogoUpload
           currentUrl={form.logoUrl}
@@ -299,6 +316,12 @@ function SchedulerSection({ data, onSaved }) {
 
   return (
     <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved} error={error}>
+      <InfoBlock>
+        <p className="font-semibold text-navy-900">O que é o endereço de agendamento?</p>
+        <p>É o link exclusivo que você compartilha com seus clientes para que eles agendem uma consulta diretamente com você — sem intermediários, sem telefonemas. O cliente acessa, escolhe o horário disponível e confirma o agendamento em poucos cliques.</p>
+        <p>O endereço fica no formato <span className="font-semibold text-navy-900">agendar.adv.br/seu-nome</span>. Você pode divulgá-lo no Instagram, no WhatsApp, no cartão de visitas ou na assinatura do seu email.</p>
+        <p className="text-xs text-blue-600 font-medium">Dica: escolha um endereço fácil de lembrar e digitar, de preferência seu nome ou o nome do escritório. Um endereço como <span className="font-bold">agendar.adv.br/silva</span> ou <span className="font-bold">agendar.adv.br/drjoao</span> passa muito mais credibilidade do que um código aleatório.</p>
+      </InfoBlock>
       <Field label="Endereço personalizado">
         <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-navy-700">
           <span className="px-3 text-gray-400 text-sm bg-gray-50 border-r border-gray-300 py-2.5 whitespace-nowrap">
@@ -308,6 +331,12 @@ function SchedulerSection({ data, onSaved }) {
             value={form.schedulerSlug}
             onChange={e => setForm({ ...form, schedulerSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
             placeholder="seu-nome" />
+          {form.schedulerSlug && (
+            <a href={`https://agendar.adv.br/${form.schedulerSlug}`} target="_blank" rel="noopener noreferrer"
+              className="px-3 py-2.5 text-sm text-navy-700 font-semibold border-l border-gray-300 hover:bg-navy-50 transition-colors whitespace-nowrap">
+              Testar →
+            </a>
+          )}
         </div>
         <p className="text-xs text-gray-400 mt-1.5">
           Use letras minúsculas, números e hífens. O endereço é único — se já estiver em uso você receberá um aviso.
@@ -372,6 +401,11 @@ function CalendarSection({ data, onSaved }) {
 
   return (
     <Section title="Configurações da agenda" onSubmit={save} loading={loading} saved={saved} error={error}>
+      <InfoBlock>
+        <p className="font-semibold text-navy-900">Defina sua disponibilidade</p>
+        <p>Estes são os horários e dias que seus clientes verão disponíveis para agendar. Fora dessa janela, nenhum horário será oferecido. Mantenha sempre atualizado para evitar conflitos de agenda.</p>
+        <p>O <span className="font-semibold">valor da consulta por hora</span> é usado pelo sistema para calcular automaticamente o valor cobrado ao cliente via Asaas. Se não quiser cobrança automática, deixe o campo em branco.</p>
+      </InfoBlock>
       <Field label="Dias de trabalho">
         <div className="flex gap-2 flex-wrap">
           {DAYS.map((d, i) => (
@@ -543,6 +577,10 @@ function AlertsSection({ data, onSaved }) {
 
   return (
     <Section title="Alertas de agendamento" desc="Receba avisos dos seus agendamentos." onSubmit={save} loading={loading} saved={saved} error={error}>
+      <InfoBlock>
+        <p className="font-semibold text-navy-900">Fique por dentro em tempo real</p>
+        <p>Ative as notificações para saber imediatamente quando um cliente agenda ou cancela uma consulta. Os alertas por email são enviados para o endereço cadastrado na aba <span className="font-semibold">Conta</span>. Os alertas por WhatsApp são enviados para o número cadastrado na mesma aba — certifique-se de que ele está correto.</p>
+      </InfoBlock>
       <div className="bg-gray-50 rounded-xl px-4">
         <Toggle field="newBookingByEmail"      label="Novo agendamento por email" />
         <Toggle field="newBookingByWhatsapp"   label="Novo agendamento por WhatsApp" />
