@@ -35,44 +35,64 @@ jobs:
           FTP_PASS: ${{ secrets.FTP_PASS }}
         run: |
           python3 - <<'PYEOF'
-          import ftplib, os, ssl, sys, socket
+          import ftplib, os, ssl, sys
 
-          TIMEOUT = 60
-          SKIP = {'logo.png', '.htaccess'}
+          TIMEOUT     = 180  # segundos por operação de socket
+          MAX_RETRIES = 3
+          SKIP        = {'logo.png', '.htaccess'}
+
+          def make_ftp():
+              ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+              ctx.check_hostname = False
+              ctx.verify_mode    = ssl.CERT_NONE
+              ftp = ftplib.FTP_TLS(context=ctx, timeout=TIMEOUT)
+              ftp.connect(os.environ['FTP_HOST'], 21, timeout=TIMEOUT)
+              ftp.login(os.environ['FTP_USER'], os.environ['FTP_PASS'])
+              ftp.set_pasv(True)
+              ftp.prot_p()
+              return ftp
+
+          def upload_file(ftp, local_path, remote_path):
+              for attempt in range(MAX_RETRIES):
+                  try:
+                      with open(local_path, 'rb') as f:
+                          ftp.storbinary(f'STOR {remote_path}', f, blocksize=65536)
+                      return ftp
+                  except Exception as e:
+                      if attempt < MAX_RETRIES - 1:
+                          print(f'  retry ({attempt+2}/{MAX_RETRIES}) {remote_path}: {e}', flush=True)
+                          try:
+                              ftp = make_ftp()
+                          except Exception:
+                              pass
+                      else:
+                          raise
+              return ftp
 
           def upload(ftp, local_dir, remote_dir):
               for item in sorted(os.listdir(local_dir)):
                   if item in SKIP:
-                      print(f'  skip {item}')
+                      print(f'  skip {item}', flush=True)
                       continue
                   local_path  = os.path.join(local_dir, item)
                   remote_path = f'{remote_dir}/{item}'
                   if os.path.isfile(local_path):
-                      with open(local_path, 'rb') as f:
-                          try:
-                              ftp.storbinary(f'STOR {remote_path}', f, blocksize=65536)
-                              print(f'  ok   {remote_path}')
-                          except Exception as e:
-                              print(f'  FAIL {remote_path}: {e}', file=sys.stderr)
-                              sys.exit(1)
+                      try:
+                          ftp = upload_file(ftp, local_path, remote_path)
+                          print(f'  ok   {remote_path}', flush=True)
+                      except Exception as e:
+                          print(f'  FAIL {remote_path}: {e}', file=sys.stderr)
+                          sys.exit(1)
                   elif os.path.isdir(local_path):
                       try:
                           ftp.mkd(remote_path)
                       except ftplib.error_perm:
                           pass  # directory already exists
-                      upload(ftp, local_path, remote_path)
+                      ftp = upload(ftp, local_path, remote_path)
+              return ftp
 
-          ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-          ctx.check_hostname = False
-          ctx.verify_mode   = ssl.CERT_NONE
-
-          ftp = ftplib.FTP_TLS(context=ctx, timeout=TIMEOUT)
-          ftp.connect(os.environ['FTP_HOST'], 21, timeout=TIMEOUT)
-          ftp.login(os.environ['FTP_USER'], os.environ['FTP_PASS'])
-          ftp.set_pasv(True)
-          ftp.prot_p()
-
+          ftp = make_ftp()
           upload(ftp, 'client/dist', '/public_html')
           ftp.quit()
-          print('Deploy concluído!')
+          print('Deploy concluído!', flush=True)
           PYEOF
