@@ -7,21 +7,86 @@ const cors = {
 }
 
 const ASAAS_URL = 'https://api.asaas.com/v3'
+const RESEND_URL = 'https://api.resend.com/emails'
+const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
+
+function clientEmailHtml(p: {
+  lawyerName: string; dateStr: string; timeStr: string
+  specialty: string; address: string; paymentUrl: string | null
+}) {
+  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
+  <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+    <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
+    <p style="color:#a0aec0;margin:8px 0 0">Confirmação de agendamento</p>
+  </div>
+  <p>Olá! Seu agendamento com <strong>${p.lawyerName}</strong> foi recebido.</p>
+  <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
+    <table style="width:100%;border-collapse:collapse">
+      <tr><td style="color:#6b7280;padding:6px 0;width:40%">Data</td><td style="font-weight:600">${p.dateStr}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0">Horário</td><td style="font-weight:600">${p.timeStr}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0">Advogado</td><td style="font-weight:600">${p.lawyerName}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0">Área</td><td style="font-weight:600">${p.specialty}</td></tr>
+      ${p.address ? `<tr><td style="color:#6b7280;padding:6px 0">Local</td><td style="font-weight:600">${p.address}</td></tr>` : ''}
+    </table>
+  </div>
+  ${p.paymentUrl
+    ? `<p>Para confirmar o agendamento, realize o pagamento clicando no botão abaixo:</p>
+       <div style="text-align:center;margin:24px 0">
+         <a href="${p.paymentUrl}" style="background:#1a1a2e;color:white;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:bold;font-size:16px">Pagar agora</a>
+       </div>`
+    : `<p style="color:#16a34a;font-weight:600">✓ Agendamento confirmado! Nenhum pagamento é necessário neste momento.</p>`
+  }
+  <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv. Não responda este email.</p>
+</body></html>`
+}
+
+function lawyerEmailHtml(p: {
+  clientName: string; clientEmail: string; clientWhatsapp: string
+  dateStr: string; timeStr: string; specialty: string; description: string
+}) {
+  return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
+  <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+    <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
+    <p style="color:#a0aec0;margin:8px 0 0">Novo agendamento recebido</p>
+  </div>
+  <p>Você tem um novo agendamento!</p>
+  <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
+    <table style="width:100%;border-collapse:collapse">
+      <tr><td style="color:#6b7280;padding:6px 0;width:40%">Cliente</td><td style="font-weight:600">${p.clientName}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0">Email</td><td style="font-weight:600">${p.clientEmail}</td></tr>
+      ${p.clientWhatsapp ? `<tr><td style="color:#6b7280;padding:6px 0">WhatsApp</td><td style="font-weight:600">${p.clientWhatsapp}</td></tr>` : ''}
+      <tr><td style="color:#6b7280;padding:6px 0">Data</td><td style="font-weight:600">${p.dateStr}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0">Horário</td><td style="font-weight:600">${p.timeStr}</td></tr>
+      <tr><td style="color:#6b7280;padding:6px 0">Área</td><td style="font-weight:600">${p.specialty}</td></tr>
+    </table>
+    ${p.description ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb">
+      <p style="color:#6b7280;margin:0 0 4px 0;font-size:13px">Descrição do caso:</p>
+      <p style="margin:0;font-style:italic">"${p.description}"</p>
+    </div>` : ''}
+  </div>
+  <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv.</p>
+</body></html>`
+}
+
+async function sendEmail(key: string, to: string, subject: string, html: string) {
+  await fetch(RESEND_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+  })
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
 
   const url = new URL(req.url)
   const parts = url.pathname.split('/').filter(Boolean)
-  // Supabase pode passar o caminho completo (/functions/v1/scheduler/slug)
-  // ou já sem o prefixo (/slug). Localiza o slug após 'scheduler', ou usa parts[0].
   const schedulerIdx = parts.indexOf('scheduler')
   const slug   = schedulerIdx >= 0 ? parts[schedulerIdx + 1] : parts[0]
   const action = schedulerIdx >= 0 ? parts[schedulerIdx + 2] : parts[1]
 
   if (!slug) return new Response('Not Found', { status: 404, headers: cors })
 
-  // Service role bypasses RLS — public endpoint
   const sb = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -40,7 +105,7 @@ Deno.serve(async (req) => {
 
     const { data: lawyerRow } = await sb
       .from('Lawyer')
-      .select('id,name')
+      .select('id,name,email,whatsapp')
       .eq('id', s.lawyerId)
       .maybeSingle()
 
@@ -48,9 +113,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Agenda não encontrada' }, { status: 404, headers: cors })
     }
 
-    const lawyer = lawyerRow as { id: string; name: string }
+    const lawyer = lawyerRow as { id: string; name: string; email: string; whatsapp: string }
 
-    // ── GET /scheduler/:slug — public profile ──────────────────────────────────────────────
+    // ── GET /scheduler/:slug ─────────────────────────────────────────────────
     if (req.method === 'GET' && !action) {
       return Response.json(
         {
@@ -62,12 +127,17 @@ Deno.serve(async (req) => {
           workEndTime: s.workEndTime ?? '18:00',
           highlightMessage: s.highlightMessage ?? null,
           hourlyRate: s.hourlyRate ?? null,
+          logoUrl: s.logoUrl ?? null,
+          street: s.street ?? '',
+          number: s.number ?? '',
+          city: s.city ?? '',
+          state: s.state ?? '',
         },
         { headers: cors }
       )
     }
 
-    // ── GET /scheduler/:slug/slots?date=YYYY-MM-DD ──────────────────────────────────────────────
+    // ── GET /scheduler/:slug/slots ───────────────────────────────────────────
     if (req.method === 'GET' && action === 'slots') {
       const date = url.searchParams.get('date')
       if (!date) return Response.json({ error: 'date required' }, { status: 400, headers: cors })
@@ -91,21 +161,19 @@ Deno.serve(async (req) => {
         const hh = String(Math.floor(m / 60)).padStart(2, '0')
         const mm = String(m % 60).padStart(2, '0')
         const slotISO = new Date(`${date}T${hh}:${mm}:00-03:00`).toISOString()
-
         const taken = (booked ?? []).some((a: { date: string; duration: number }) => {
           const aStart = new Date(a.date).getTime()
           const aEnd = aStart + (a.duration ?? 60) * 60_000
           const sStart = new Date(slotISO).getTime()
           return sStart >= aStart && sStart < aEnd
         })
-
         if (!taken) slots.push(`${hh}:${mm}`)
       }
 
       return Response.json({ slots }, { headers: cors })
     }
 
-    // ── POST /scheduler/:slug/book ─────────────────────────────────────────────────────────────────────────
+    // ── POST /scheduler/:slug/book ───────────────────────────────────────────
     if (req.method === 'POST' && action === 'book') {
       const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot } =
         await req.json()
@@ -114,7 +182,6 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Campos obrigatórios ausentes' }, { status: 400, headers: cors })
       }
 
-      // Find or create client
       const { data: existing } = await sb
         .from('Client')
         .select('id')
@@ -128,14 +195,19 @@ Deno.serve(async (req) => {
       } else {
         const { data: nc, error: ncErr } = await sb
           .from('Client')
-          .insert({ lawyerId: lawyer.id, name: clientName, email: clientEmail, whatsapp: clientWhatsapp })
+          .insert({
+            id: crypto.randomUUID(),
+            lawyerId: lawyer.id,
+            name: clientName,
+            email: clientEmail,
+            whatsapp: clientWhatsapp,
+          })
           .select('id')
           .single()
         if (ncErr) throw ncErr
         clientId = nc.id
       }
 
-      // Create appointment
       const apptDate = new Date(`${selectedDate}T${selectedSlot}:00-03:00`).toISOString()
       const { data: appt, error: apptErr } = await sb
         .from('Appointment')
@@ -157,21 +229,17 @@ Deno.serve(async (req) => {
 
       let paymentUrl: string | null = null
 
-      // Asaas integration (optional)
       if (s.asaasApiKey) {
         const hourlyRate = parseFloat(s.hourlyRate ?? '0')
         const amount = hourlyRate > 0 ? (hourlyRate * (s.slotDuration ?? 60)) / 60 : 0
-
         if (amount > 0) {
           try {
-            // Find or create Asaas customer
             const cRes = await fetch(
               `${ASAAS_URL}/customers?email=${encodeURIComponent(clientEmail)}`,
               { headers: { access_token: s.asaasApiKey } }
             )
             const cData = await cRes.json()
             let customerId: string = cData.data?.[0]?.id
-
             if (!customerId) {
               const createRes = await fetch(`${ASAAS_URL}/customers`, {
                 method: 'POST',
@@ -181,43 +249,58 @@ Deno.serve(async (req) => {
               const created = await createRes.json()
               customerId = created.id
             }
-
-            // Charge due 1 day before appointment
             const due = new Date(apptDate)
             due.setDate(due.getDate() - 1)
             const dueDate = due.toISOString().slice(0, 10)
-
             const chargeRes = await fetch(`${ASAAS_URL}/payments`, {
               method: 'POST',
               headers: { access_token: s.asaasApiKey, 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                customer: customerId,
-                billingType: 'UNDEFINED',
-                value: amount,
-                dueDate,
-                description: `Consulta: ${specialty}`,
-                externalReference: appt.id,
+                customer: customerId, billingType: 'UNDEFINED', value: amount, dueDate,
+                description: `Consulta: ${specialty}`, externalReference: appt.id,
               }),
             })
             const charge = await chargeRes.json()
             paymentUrl = charge.invoiceUrl ?? charge.bankSlipUrl ?? null
-
             if (charge.id) {
               await sb.from('Payment').insert({
-                lawyerId: lawyer.id,
-                clientId,
-                appointmentId: appt.id,
-                amount,
-                status: 'PENDING',
-                asaasId: charge.id,
-                asaasUrl: paymentUrl,
+                lawyerId: lawyer.id, clientId, appointmentId: appt.id,
+                amount, status: 'PENDING', asaasId: charge.id, asaasUrl: paymentUrl,
                 dueDate: new Date(dueDate).toISOString(),
               })
             }
-          } catch (_) {
-            // Asaas failure doesn't block the booking
-          }
+          } catch (_) {}
         }
+      }
+
+      if (!paymentUrl) {
+        await sb.from('Appointment').update({ status: 'CONFIRMED' }).eq('id', appt.id)
+      }
+
+      const RESEND_KEY = Deno.env.get('RESEND_API_KEY')
+      if (RESEND_KEY) {
+        try {
+          const apptDateObj = new Date(apptDate)
+          const dateStr = apptDateObj.toLocaleDateString('pt-BR', {
+            timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+          })
+          const timeStr = apptDateObj.toLocaleTimeString('pt-BR', {
+            timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit',
+          })
+          const address = [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
+          await sendEmail(
+            RESEND_KEY, clientEmail,
+            `Agendamento confirmado — ${lawyer.name}`,
+            clientEmailHtml({ lawyerName: lawyer.name, dateStr, timeStr, specialty, address, paymentUrl })
+          )
+          if (s.newBookingByEmail !== false && lawyer.email) {
+            await sendEmail(
+              RESEND_KEY, lawyer.email,
+              `Novo agendamento — ${clientName}`,
+              lawyerEmailHtml({ clientName, clientEmail, clientWhatsapp, dateStr, timeStr, specialty, description })
+            )
+          }
+        } catch (_) {}
       }
 
       return Response.json({ appointmentId: appt.id, paymentUrl }, { status: 201, headers: cors })
