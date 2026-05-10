@@ -6,7 +6,6 @@ import {
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { publicApi } from '../lib/api'
-import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
 const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const STEPS = ['Horário', 'Dados', 'Problema']
@@ -79,7 +78,6 @@ export default function Scheduler() {
   const [booking, setBooking] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
-  const [specialtySearch, setSpecialtySearch] = useState('')
   const [specialtyManual, setSpecialtyManual] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [micError, setMicError] = useState('')
@@ -137,7 +135,7 @@ export default function Scheduler() {
 
   const updateForm = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
-  const startListening = () => {
+  const startListening = async () => {
     if (isListening) {
       try { recognitionRef.current?.stop() } catch {}
       setIsListening(false)
@@ -147,6 +145,16 @@ export default function Scheduler() {
     if (!SR) return
 
     setMicError('')
+
+    // getUserMedia garante permissão e resolução do microfone em desktops com múltiplos dispositivos
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+    } catch {
+      setMicError('Permissão de microfone negada. Habilite nas configurações do navegador.')
+      return
+    }
+
     const recognition = new SR()
     recognition.lang = 'pt-BR'
     recognition.continuous = true
@@ -227,10 +235,6 @@ export default function Scheduler() {
   ].filter(Boolean)
   const address = addressParts.join(' — ')
 
-  const filteredSpecialties = LEGAL_SPECIALTIES.filter((s) =>
-    s.toLowerCase().includes(specialtySearch.toLowerCase())
-  )
-
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -261,7 +265,7 @@ export default function Scheduler() {
         {info.highlightMessage && (
           <p className="text-brand-400 text-sm mt-2 max-w-xs mx-auto">{info.highlightMessage}</p>
         )}
-        {consultaValor && (
+        {info.hasAsaas && consultaValor && (
           <p className="text-gray-300 text-sm mt-1">
             Consulta de {info.slotDuration} min — {consultaValor}
           </p>
@@ -396,6 +400,22 @@ export default function Scheduler() {
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700 resize-none"
               placeholder="Ex: Fui demitido sem justa causa e não recebi todas as verbas rescisórias. Trabalhei 3 anos na empresa..." />
 
+            {detectingSpecialty && (
+              <p className="mt-2 text-xs text-gray-400 animate-pulse">Identificando área jurídica...</p>
+            )}
+            {!detectingSpecialty && form.specialty && !specialtyManual && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                <span>Área: <span className="font-semibold text-navy-700">{form.specialty}</span></span>
+                <button type="button" onClick={() => setSpecialtyManual(true)}
+                  className="underline hover:text-navy-900 transition-colors">alterar</button>
+              </div>
+            )}
+            {specialtyManual && (
+              <input value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
+                className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                placeholder="Área do direito..." />
+            )}
+
             {hasSpeechAPI && (
               <button type="button" onClick={startListening}
                 className={`mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border-2 transition-colors
@@ -405,46 +425,9 @@ export default function Scheduler() {
             )}
             {micError && <p className="mt-2 text-xs text-red-500">{micError}</p>}
 
-            {detectingSpecialty && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-                <p className="text-xs text-blue-500 animate-pulse">Identificando área jurídica...</p>
-              </div>
-            )}
-
-            {!detectingSpecialty && form.specialty && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-blue-600 font-medium">Área identificada:</p>
-                  <p className="text-sm font-semibold text-navy-900">{form.specialty}</p>
-                </div>
-                <button onClick={() => { setForm(f => ({ ...f, specialty: '' })); setSpecialtyManual(true) }}
-                  className="text-xs text-gray-400 hover:text-red-500 transition-colors ml-3">Alterar</button>
-              </div>
-            )}
-
-            {!detectingSpecialty && !form.specialty && (
-              <div className="mt-4">
-                <p className="text-xs text-gray-500 mb-1.5">Selecione a área manualmente:</p>
-                <input value={specialtySearch}
-                  onChange={(e) => { setSpecialtySearch(e.target.value); setForm(f => ({ ...f, specialty: '' })) }}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                  placeholder="Pesquise a área do direito..." />
-                {specialtySearch && (
-                  <div className="border border-gray-200 rounded-xl mt-1 max-h-40 overflow-y-auto shadow-sm">
-                    {filteredSpecialties.map((s) => (
-                      <button key={s} onClick={() => { setForm(f => ({ ...f, specialty: s })); setSpecialtySearch(s); setSpecialtyManual(true) }}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0">
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             <div className="flex gap-3 mt-6">
               <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-              <button onClick={handleBook} disabled={booking || (!form.description && !form.specialty)}
+              <button onClick={handleBook} disabled={booking || detectingSpecialty || !form.description}
                 className="flex-1 py-3 rounded-xl bg-brand-500 text-navy-900 font-bold disabled:opacity-50 hover:bg-brand-400 transition-colors">
                 {booking ? 'Aguarde...' : 'Confirmar →'}
               </button>

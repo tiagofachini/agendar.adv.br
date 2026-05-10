@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
       const { data: appt, error: apptErr } = await sb
         .from('Appointment')
         .insert({
+          id: crypto.randomUUID(),
           lawyerId: lawyer.id,
           clientId,
           clientName,
@@ -224,6 +225,7 @@ Deno.serve(async (req) => {
           date: apptDate,
           duration: s.slotDuration ?? 60,
           status: 'PENDING_PAYMENT',
+          updatedAt: new Date().toISOString(),
         })
         .select('id')
         .single()
