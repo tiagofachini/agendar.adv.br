@@ -20,7 +20,7 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-// ── Modal de novo cliente ─────────────────────────────────────────────────────
+// ── Modal de novo cliente ─────────────────────────────────────────────────────────────────────────
 function NewClientModal({ onClose, onCreated }) {
   const [form, setForm] = useState({ name: '', email: '', whatsapp: '' })
   const [loading, setLoading] = useState(false)
@@ -75,7 +75,7 @@ function NewClientModal({ onClose, onCreated }) {
   )
 }
 
-// ── Drawer de detalhe do cliente ──────────────────────────────────────────────
+// ── Drawer de detalhe do cliente ────────────────────────────────────────────────────────────────
 function ClientDrawer({ clientId, onClose }) {
   const [client, setClient] = useState(null)
 
@@ -159,7 +159,7 @@ function ClientDrawer({ clientId, onClose }) {
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+// ── Página principal ─────────────────────────────────────────────────────────────────────────
 export default function Clients() {
   const [clients, setClients] = useState([])
   const [total, setTotal] = useState(0)
@@ -255,7 +255,7 @@ export default function Clients() {
                       <p className="text-sm text-gray-400 truncate">{client.email}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-semibold text-navy-900">{client._count.appointments}</p>
+                      <p className="text-sm font-semibold text-navy-900">{client._count?.appointments ?? 0}</p>
                       <p className="text-xs text-gray-400">atend.</p>
                     </div>
                   </button>

@@ -40,13 +40,17 @@ Deno.serve(async (req) => {
 
       let q = sb
         .from('Client')
-        .select('*', { count: 'exact' })
+        .select('*, appointments:Appointment(count)', { count: 'exact' })
         .order('name')
-      if (search) q = q.ilike('name', `%${search}%`)
+      if (search) q = q.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
       const { data, error, count } = await q.range(from, from + pageSize - 1)
       if (error) throw error
+      const clients = (data ?? []).map(({ appointments, ...c }) => ({
+        ...c,
+        _count: { appointments: appointments?.[0]?.count ?? 0 },
+      }))
       return Response.json(
-        { clients: data, total: count, page, pages: Math.ceil((count ?? 0) / pageSize) },
+        { clients, total: count, page, pages: Math.ceil((count ?? 0) / pageSize) },
         { headers: cors }
       )
     }
