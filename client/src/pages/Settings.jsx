@@ -118,7 +118,6 @@ function LogoUpload({ currentUrl, lawyerId, onChange }) {
   )
 }
 
-// ── Conta ─────────────────────────────────────────────────────────────────────
 function AccountSection({ data, onSaved }) {
   const a = data.account || {}
   const [form, setForm] = useState({ name: a.name || '', email: a.email || '', whatsapp: a.whatsapp || '' })
@@ -163,7 +162,6 @@ function AccountSection({ data, onSaved }) {
   )
 }
 
-// ── Escritório ────────────────────────────────────────────────────────────────
 function OfficeSection({ data, onSaved }) {
   const { lawyer } = useAuth()
   const o = data.office || {}
@@ -282,7 +280,6 @@ function OfficeSection({ data, onSaved }) {
   )
 }
 
-// ── Agendador ─────────────────────────────────────────────────────────────────
 function SchedulerSection({ data, onSaved }) {
   const sc = data.scheduler || {}
   const [form, setForm] = useState({
@@ -320,7 +317,7 @@ function SchedulerSection({ data, onSaved }) {
         <p className="font-semibold text-navy-900">O que é o endereço de agendamento?</p>
         <p>É o link exclusivo que você compartilha com seus clientes para que eles agendem uma consulta diretamente com você — sem intermediários, sem telefonemas. O cliente acessa, escolhe o horário disponível e confirma o agendamento em poucos cliques.</p>
         <p>O endereço fica no formato <span className="font-semibold text-navy-900">agendar.adv.br/seu-nome</span>. Você pode divulgá-lo no Instagram, no WhatsApp, no cartão de visitas ou na assinatura do seu email.</p>
-        <p className="text-xs text-blue-600 font-medium">Dica: escolha um endereço fácil de lembrar e digitar, de preferência seu nome ou o nome do escritório. Um endereço como <span className="font-bold">agendar.adv.br/silva</span> ou <span className="font-bold">agendar.adv.br/drjoao</span> passa muito mais credibilidade do que um código aleatório.</p>
+        <p className="text-xs text-blue-600 font-medium">Dica: escolha um endereço fácil de lembrar e digitar, de preferência seu nome ou o nome do escritório.</p>
       </InfoBlock>
       <Field label="Endereço personalizado">
         <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-navy-700">
@@ -359,7 +356,6 @@ function SchedulerSection({ data, onSaved }) {
   )
 }
 
-// ── Agenda ────────────────────────────────────────────────────────────────────
 function CalendarSection({ data, onSaved }) {
   const c = data.calendar || {}
   const [form, setForm] = useState({
@@ -404,7 +400,7 @@ function CalendarSection({ data, onSaved }) {
       <InfoBlock>
         <p className="font-semibold text-navy-900">Defina sua disponibilidade</p>
         <p>Estes são os horários e dias que seus clientes verão disponíveis para agendar. Fora dessa janela, nenhum horário será oferecido. Mantenha sempre atualizado para evitar conflitos de agenda.</p>
-        <p>O <span className="font-semibold">valor da consulta por hora</span> é usado pelo sistema para calcular automaticamente o valor cobrado ao cliente via Asaas. Se não quiser cobrança automática, deixe o campo em branco.</p>
+        <p>O <span className="font-semibold">valor da consulta por hora</span> é usado pelo sistema para calcular automaticamente o valor cobrado ao cliente via Stripe. Se não quiser cobrança automática, deixe o campo em branco.</p>
       </InfoBlock>
       <Field label="Dias de trabalho">
         <div className="flex gap-2 flex-wrap">
@@ -436,45 +432,38 @@ function CalendarSection({ data, onSaved }) {
   )
 }
 
-// ── Financeiro ────────────────────────────────────────────────────────────────
-function FinancialSection({ data, onSaved }) {
+function FinancialSection({ data }) {
   const f = data.financial || {}
-  const [realKey, setRealKey] = useState('')
-  const [showInput, setShowInput] = useState(!f.asaasApiKey)
-  const [loading, setLoading] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [onboarding, setOnboarding] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const f = data.financial || {}
-    setShowInput(!f.asaasApiKey)
-  }, [data])
-
-  const save = async (e) => {
-    e.preventDefault()
-    if (!realKey) return
-    setLoading(true); setSaved(false); setError('')
+  const startOnboarding = async () => {
+    setOnboarding(true); setError('')
     try {
-      await api.put('/settings/financial', { asaasApiKey: realKey })
-      setSaved(true); setShowInput(false); setRealKey(''); onSaved()
+      const { data: res } = await api.post('/stripe-connect/onboard')
+      if (res.url) window.location.href = res.url
     } catch (err) {
-      setError(errMsg(err))
+      setError(err.response?.data?.error || 'Erro ao iniciar conexão com Stripe.')
+    } finally {
+      setOnboarding(false)
     }
-    setLoading(false)
   }
 
+  const isConnected = f.stripeChargesEnabled
+  const isPending = f.stripeAccountId && !f.stripeChargesEnabled
+
   return (
-    <form onSubmit={save} className="space-y-5">
+    <div className="space-y-5">
       <div className="bg-navy-900 rounded-2xl p-6 text-white">
         <h3 className="font-bold text-lg mb-4">Como funciona o recebimento?</h3>
         <div className="space-y-4">
           {[
-            ['1', 'Seu cliente acessa seu link (agendar.adv.br/seu-nome), escolhe o horário e segue para o pagamento.'],
-            ['2', 'O AgendarAdv não processa pagamentos diretamente — usamos o Asaas, uma fintech regulamentada pelo Banco Central, para gerar boleto, PIX ou cartão.'],
-            ['3', 'O dinheiro cai direto na sua conta bancária cadastrada no Asaas. O AgendarAdv não toca no seu dinheiro.'],
+            ['1', 'Seu cliente acessa seu link, escolhe o horário e paga diretamente na página — sem sair da aplicação.'],
+            ['2', 'Usamos o Stripe, a maior plataforma de pagamentos do mundo. Aceitamos cartão de crédito, débito e PIX.'],
+            ['3', 'O dinheiro cai direto na sua conta bancária cadastrada no Stripe. O AgendarAdv retém apenas 0,05% como taxa de plataforma.'],
           ].map(([n, text]) => (
             <div key={n} className="flex gap-3 items-start">
-              <span className="flex-shrink-0 w-7 h-7 bg-brand-500 rounded-full flex items-center justify-center text-sm font-bold">{n}</span>
+              <span className="flex-shrink-0 w-7 h-7 bg-brand-500 rounded-full flex items-center justify-center text-sm font-bold text-navy-900">{n}</span>
               <p className="text-sm text-gray-300 leading-relaxed">{text}</p>
             </div>
           ))}
@@ -482,56 +471,57 @@ function FinancialSection({ data, onSaved }) {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-        <h3 className="font-bold text-navy-900 text-lg">Configure o Asaas em 3 passos</h3>
-        <ol className="space-y-3">
-          {[
-            ['Crie uma conta gratuita no Asaas', 'Cadastro simples em www.asaas.com — leva menos de 5 minutos. Informe seus dados bancários para receber os pagamentos.'],
-            ['Copie sua API Key', 'No painel do Asaas, acesse Configurações → Integrações → API e copie sua chave de acesso. Ela começa com "$aact_".'],
-            ['Cole aqui e pronto', 'A partir daí, cada agendamento pelo seu link já gera a cobrança automaticamente para o seu cliente.'],
-          ].map(([title, desc], i) => (
-            <li key={i} className="flex gap-3 items-start">
-              <span className="flex-shrink-0 w-6 h-6 bg-navy-100 text-navy-900 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">{i + 1}</span>
-              <div>
-                <p className="text-sm font-semibold text-navy-900">{title}</p>
-                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{desc}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <a href="https://www.asaas.com" target="_blank" rel="noopener noreferrer"
-          className="inline-block mt-2 px-5 py-2.5 rounded-xl bg-navy-900 text-white text-sm font-semibold hover:bg-navy-800 transition-colors">
-          Criar conta gratuita no Asaas →
-        </a>
-      </div>
+        <h3 className="font-bold text-navy-900 text-lg">Conta Stripe Connect</h3>
 
-      <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-        <h3 className="font-bold text-navy-900 text-lg">Sua API Key do Asaas</h3>
-        {!showInput && f.asaasApiKey ? (
-          <div className="flex items-center gap-3">
-            <div className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 text-gray-500 font-mono">
-              {f.asaasApiKey}
+        {isConnected && (
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
+            <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-green-800 text-sm">Conta conectada e ativa</p>
+              <p className="text-xs text-green-600 mt-0.5">Você já pode receber pagamentos pela plataforma.</p>
             </div>
-            <button type="button" onClick={() => setShowInput(true)}
-              className="text-sm text-navy-700 font-medium hover:underline whitespace-nowrap">
-              Alterar
-            </button>
           </div>
-        ) : (
-          <>
-            <input className={inputCls} type="password" value={realKey}
-              onChange={e => setRealKey(e.target.value)} placeholder="$aact_..." />
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <div className="flex justify-end">
-              <SaveBtn loading={loading} saved={saved} />
+        )}
+
+        {isPending && (
+          <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
+            <div className="w-3 h-3 bg-yellow-500 rounded-full flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-yellow-800 text-sm">Verificação pendente</p>
+              <p className="text-xs text-yellow-700 mt-0.5">Complete o cadastro no Stripe para começar a receber.</p>
             </div>
-          </>
+          </div>
+        )}
+
+        {!f.stripeAccountId && (
+          <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-xl">
+            <div className="w-3 h-3 bg-gray-300 rounded-full flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-semibold text-gray-700 text-sm">Conta não conectada</p>
+              <p className="text-xs text-gray-500 mt-0.5">Conecte sua conta Stripe para aceitar pagamentos.</p>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+
+        {!isConnected && (
+          <button onClick={startOnboarding} disabled={onboarding}
+            className="w-full py-3 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors disabled:opacity-50">
+            {onboarding ? 'Redirecionando...' : isPending ? 'Continuar cadastro no Stripe →' : 'Conectar conta Stripe →'}
+          </button>
+        )}
+
+        {isConnected && (
+          <p className="text-xs text-gray-400 text-center">
+            Para gerenciar saques e dados bancários, acesse o painel Stripe na aba Financeiro.
+          </p>
         )}
       </div>
-    </form>
+    </div>
   )
 }
 
-// ── Alertas ───────────────────────────────────────────────────────────────────
 function AlertsSection({ data, onSaved }) {
   const al = data.alerts || {}
   const [form, setForm] = useState({
@@ -579,7 +569,7 @@ function AlertsSection({ data, onSaved }) {
     <Section title="Alertas de agendamento" desc="Receba avisos dos seus agendamentos." onSubmit={save} loading={loading} saved={saved} error={error}>
       <InfoBlock>
         <p className="font-semibold text-navy-900">Fique por dentro em tempo real</p>
-        <p>Ative as notificações para saber imediatamente quando um cliente agenda ou cancela uma consulta. Os alertas por email são enviados para o endereço cadastrado na aba <span className="font-semibold">Conta</span>. Os alertas por WhatsApp são enviados para o número cadastrado na mesma aba — certifique-se de que ele está correto.</p>
+        <p>Ative as notificações para saber imediatamente quando um cliente agenda ou cancela uma consulta. Os alertas por email são enviados para o endereço cadastrado na aba <span className="font-semibold">Conta</span>. Os alertas por WhatsApp são enviados para o número cadastrado na mesma aba.</p>
       </InfoBlock>
       <div className="bg-gray-50 rounded-xl px-4">
         <Toggle field="newBookingByEmail"      label="Novo agendamento por email" />
@@ -591,7 +581,6 @@ function AlertsSection({ data, onSaved }) {
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('account')
   const [settingsData, setSettingsData] = useState(null)
@@ -640,7 +629,7 @@ export default function Settings() {
       {activeTab === 'office'    && <OfficeSection     data={settingsData} onSaved={load} />}
       {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} />}
       {activeTab === 'calendar'  && <CalendarSection   data={settingsData} onSaved={load} />}
-      {activeTab === 'financial' && <FinancialSection  data={settingsData} onSaved={load} />}
+      {activeTab === 'financial' && <FinancialSection  data={settingsData} />}
       {activeTab === 'alerts'    && <AlertsSection     data={settingsData} onSaved={load} />}
     </div>
   )
