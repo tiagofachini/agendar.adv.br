@@ -5,7 +5,12 @@ import {
   eachDayOfInterval, getDay, isSameDay, isToday, isBefore, startOfDay,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { publicApi } from '../lib/api'
+
+const STRIPE_PK = 'pk_test_51TW3uDLBWejVmCs0Qzc7sr8lJubkvwUepiMVnkRAncmp1MurhvMugJzCayPvpLRjup7MkLE2MnHNN2zFN5sdcyzG00XsYGrusQ'
+const stripePromise = loadStripe(STRIPE_PK)
 
 const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -18,25 +23,6 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-function maskCard(raw) {
-  return raw.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ')
-}
-
-function maskExpiry(raw) {
-  const d = raw.replace(/\D/g, '').slice(0, 4)
-  if (d.length <= 2) return d
-  return `${d.slice(0, 2)}/${d.slice(2)}`
-}
-
-function maskCPF(raw) {
-  const d = raw.replace(/\D/g, '').slice(0, 11)
-  if (d.length <= 3) return d
-  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
-  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
-}
-
-// ── Calendário ────────────────────────────────────────────────────────────────
 function Calendar({ workDays, selectedDate, onSelect, currentMonth, onMonthChange }) {
   const today = startOfDay(new Date())
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) })
@@ -81,7 +67,43 @@ function Calendar({ workDays, selectedDate, onSelect, currentMonth, onMonthChang
   )
 }
 
-// ── Componente principal ──────────────────────────────────────────────────────
+function StripePaymentForm({ onSuccess, onError, consultaValor }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [paying, setPaying] = useState(false)
+  const [err, setErr] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!stripe || !elements) return
+    setPaying(true); setErr('')
+
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: { return_url: window.location.href },
+      redirect: 'if_required',
+    })
+
+    if (error) {
+      setErr(error.message || 'Erro ao processar pagamento.')
+      setPaying(false)
+    } else {
+      onSuccess()
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement options={{ layout: 'tabs' }} />
+      {err && <p className="text-red-500 text-sm">{err}</p>}
+      <button type="submit" disabled={!stripe || paying}
+        className="w-full py-3.5 rounded-xl bg-navy-900 text-white font-bold disabled:opacity-50 hover:bg-navy-800 transition-colors">
+        {paying ? 'Processando...' : `Pagar ${consultaValor ?? ''} →`}
+      </button>
+    </form>
+  )
+}
+
 export default function Scheduler() {
   const { slug } = useParams()
   const [info, setInfo] = useState(null)
@@ -99,9 +121,9 @@ export default function Scheduler() {
   const [isListening, setIsListening] = useState(false)
   const [micError, setMicError] = useState('')
   const [detectingSpecialty, setDetectingSpecialty] = useState(false)
-  const [paymentMethod, setPaymentMethod] = useState(null)
-  const [card, setCard] = useState({ holderName: '', number: '', expiry: '', ccv: '', cpf: '' })
-  const [pixCopied, setPixCopied] = useState(false)
+  const [clientSecret, setClientSecret] = useState(null)
+  const [pendingAppt, setPendingAppt] = useState(null)
+  const [creatingIntent, setCreatingIntent] = useState(false)
   const recognitionRef = useRef(null)
 
   const [form, setForm] = useState({
@@ -205,11 +227,11 @@ export default function Scheduler() {
     }
   }
 
-  const handleBook = async () => {
+  const handleFreeBook = async () => {
     setBooking(true); setError('')
     try {
       const specialty = form.specialty || 'Consultoria Jurídica Geral'
-      const body = {
+      const { data } = await publicApi.post(`/scheduler/${slug}/book`, {
         clientName: form.clientName,
         clientEmail: form.clientEmail,
         clientWhatsapp: form.clientWhatsapp,
@@ -217,29 +239,8 @@ export default function Scheduler() {
         description: form.description,
         selectedDate: format(selectedDate, 'yyyy-MM-dd'),
         selectedSlot,
-        billingType: paymentMethod ?? 'UNDEFINED',
-      }
-
-      if (paymentMethod === 'CREDIT_CARD' && card.number) {
-        const [expMonth, expYear] = card.expiry.split('/')
-        body.creditCard = {
-          holderName: card.holderName,
-          number: card.number.replace(/\s/g, ''),
-          expiryMonth: expMonth?.trim(),
-          expiryYear: expYear ? `20${expYear.trim()}` : '',
-          ccv: card.ccv,
-        }
-        body.creditCardHolderInfo = {
-          name: card.holderName,
-          email: form.clientEmail,
-          cpfCnpj: card.cpf.replace(/\D/g, ''),
-          phone: form.clientWhatsapp?.replace(/\D/g, '') || '',
-        }
-      }
-
-      const { data } = await publicApi.post(`/scheduler/${slug}/book`, body)
-      setForm(f => ({ ...f, specialty }))
-      setResult(data)
+      })
+      setResult({ ...data, free: true, specialty })
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao processar. Verifique os dados e tente novamente.')
     } finally {
@@ -247,10 +248,33 @@ export default function Scheduler() {
     }
   }
 
-  const copyPix = () => {
-    navigator.clipboard.writeText(result?.pixCopyCPaste ?? '')
-      .then(() => { setPixCopied(true); setTimeout(() => setPixCopied(false), 2000) })
-      .catch(() => {})
+  const handleGoToPayment = async () => {
+    setCreatingIntent(true); setError('')
+    try {
+      const specialty = form.specialty || 'Consultoria Jurídica Geral'
+      const { data } = await publicApi.post('/stripe-connect/checkout', {
+        slug,
+        clientName: form.clientName,
+        clientEmail: form.clientEmail,
+        clientWhatsapp: form.clientWhatsapp,
+        specialty,
+        description: form.description,
+        selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+        selectedSlot,
+      })
+      setClientSecret(data.clientSecret)
+      setPendingAppt({ appointmentId: data.appointmentId, amount: data.amount, meetingLink: data.meetingLink })
+      setForm(f => ({ ...f, specialty }))
+      setStep(3)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao iniciar pagamento. Tente novamente.')
+    } finally {
+      setCreatingIntent(false)
+    }
+  }
+
+  const handlePaymentSuccess = () => {
+    setResult({ ...pendingAppt, paid: true })
   }
 
   if (notFound) return (
@@ -273,7 +297,7 @@ export default function Scheduler() {
     ? `R$ ${((parseFloat(info.hourlyRate) / 60) * (info.slotDuration ?? 60)).toFixed(2).replace('.', ',')}`
     : null
 
-  const showPaymentStep = info.hasAsaas && !!consultaValor
+  const showPaymentStep = info.hasStripe && !!consultaValor
 
   const STEPS = showPaymentStep
     ? ['Horário', 'Dados', 'Problema', 'Pagamento']
@@ -288,7 +312,6 @@ export default function Scheduler() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── Header ── */}
       <div className="bg-navy-900 px-6 py-8 text-center">
         {info.logoUrl && (
           <img src={info.logoUrl} alt="logo" className="h-16 mx-auto mb-4 rounded-xl object-contain bg-white/10 p-1" />
@@ -315,14 +338,13 @@ export default function Scheduler() {
         {info.highlightMessage && (
           <p className="text-brand-400 text-sm mt-2 max-w-xs mx-auto">{info.highlightMessage}</p>
         )}
-        {info.hasAsaas && consultaValor && (
+        {showPaymentStep && (
           <p className="text-gray-300 text-sm mt-1">
             Consulta de {info.slotDuration} min — {consultaValor}
           </p>
         )}
       </div>
 
-      {/* ── Steps indicator ── */}
       {!result && step < STEPS.length && (
         <div className="bg-white border-b px-6 py-3">
           <div className="flex items-center justify-center gap-0 max-w-sm mx-auto">
@@ -344,7 +366,6 @@ export default function Scheduler() {
 
       <div className="max-w-md mx-auto px-4 py-6">
 
-        {/* ── Step 0 ── */}
         {step === 0 && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
@@ -362,7 +383,7 @@ export default function Scheduler() {
               </ol>
               {showPaymentStep && (
                 <p className="mt-3 text-xs text-blue-700 font-medium">
-                  O pagamento é necessário para garantir o seu horário.
+                  O pagamento é processado com segurança via Stripe. Aceitamos cartão e PIX.
                 </p>
               )}
             </div>
@@ -401,7 +422,6 @@ export default function Scheduler() {
           </div>
         )}
 
-        {/* ── Step 1 ── */}
         {step === 1 && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="font-bold text-navy-900 mb-1 text-lg">Seus dados</h2>
@@ -439,7 +459,6 @@ export default function Scheduler() {
           </div>
         )}
 
-        {/* ── Step 2 ── */}
         {step === 2 && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="font-bold text-navy-900 mb-1 text-lg">Descreva seu caso</h2>
@@ -478,226 +497,64 @@ export default function Scheduler() {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
               <button
-                onClick={showPaymentStep ? () => setStep(3) : handleBook}
-                disabled={booking || detectingSpecialty || !form.description}
+                onClick={showPaymentStep ? handleGoToPayment : handleFreeBook}
+                disabled={booking || creatingIntent || detectingSpecialty || !form.description}
                 className="flex-1 py-3 rounded-xl bg-brand-500 text-navy-900 font-bold disabled:opacity-50 hover:bg-brand-400 transition-colors">
-                {booking ? 'Aguarde...' : (showPaymentStep ? 'Continuar →' : 'Confirmar →')}
+                {booking || creatingIntent ? 'Aguarde...' : (showPaymentStep ? 'Ir para pagamento →' : 'Confirmar →')}
               </button>
             </div>
-            {error && !showPaymentStep && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
+            {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
           </div>
         )}
 
-        {/* ── Step 3 — Pagamento ── */}
-        {step === 3 && !result && showPaymentStep && (
+        {step === 3 && !result && showPaymentStep && clientSecret && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
             {consultaValor && (
-              <p className="text-sm text-gray-500 mb-5">Valor da consulta: <span className="font-semibold text-navy-900">{consultaValor}</span></p>
+              <p className="text-sm text-gray-500 mb-5">
+                Valor da consulta: <span className="font-semibold text-navy-900">{consultaValor}</span>
+              </p>
             )}
-
-            {!paymentMethod && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-gray-700 mb-3">Escolha a forma de pagamento:</p>
-                {[
-                  { id: 'PIX',         icon: '⚡', label: 'PIX',                desc: 'Pagamento instantâneo via QR code' },
-                  { id: 'BOLETO',      icon: '📄', label: 'Boleto Bancário',    desc: 'Vencimento no dia anterior à consulta' },
-                  { id: 'CREDIT_CARD', icon: '💳', label: 'Cartão de Crédito', desc: 'Aprovação imediata' },
-                ].map(m => (
-                  <button key={m.id} onClick={() => setPaymentMethod(m.id)}
-                    className="w-full flex items-center gap-4 p-4 border-2 border-gray-200 rounded-xl hover:border-navy-900 transition-colors text-left">
-                    <span className="text-2xl">{m.icon}</span>
-                    <div>
-                      <p className="font-semibold text-navy-900">{m.label}</p>
-                      <p className="text-xs text-gray-500">{m.desc}</p>
-                    </div>
-                  </button>
-                ))}
-                <button onClick={() => setStep(2)} className="w-full mt-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-medium text-sm">← Voltar</button>
-              </div>
-            )}
-
-            {paymentMethod === 'PIX' && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                  <p className="text-sm text-blue-700">Um QR code PIX será gerado. Pague pelo app do seu banco — o agendamento é confirmado automaticamente em até 15 minutos após o pagamento.</p>
-                </div>
-                {error && <p className="text-red-500 text-sm">{error}</p>}
-                <div className="flex gap-3">
-                  <button onClick={() => { setPaymentMethod(null); setError('') }}
-                    className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-                  <button onClick={handleBook} disabled={booking}
-                    className="flex-1 py-3 rounded-xl bg-navy-900 text-white font-bold disabled:opacity-50 hover:bg-navy-800 transition-colors">
-                    {booking ? 'Gerando...' : 'Gerar QR Code →'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {paymentMethod === 'BOLETO' && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                  <p className="text-sm text-blue-700">Um boleto bancário será gerado. Pague até a data de vencimento — o agendamento é confirmado após a compensação bancária (até 3 dias úteis).</p>
-                </div>
-                {error && <p className="text-red-500 text-sm">{error}</p>}
-                <div className="flex gap-3">
-                  <button onClick={() => { setPaymentMethod(null); setError('') }}
-                    className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-                  <button onClick={handleBook} disabled={booking}
-                    className="flex-1 py-3 rounded-xl bg-navy-900 text-white font-bold disabled:opacity-50 hover:bg-navy-800 transition-colors">
-                    {booking ? 'Gerando...' : 'Gerar Boleto →'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {paymentMethod === 'CREDIT_CARD' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome no cartão *</label>
-                  <input value={card.holderName}
-                    onChange={e => setCard(c => ({ ...c, holderName: e.target.value.toUpperCase() }))}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700 uppercase"
-                    placeholder="NOME COMO NO CARTÃO" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Número do cartão *</label>
-                  <input value={card.number}
-                    onChange={e => setCard(c => ({ ...c, number: maskCard(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700 font-mono tracking-widest"
-                    placeholder="0000 0000 0000 0000" maxLength={19} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Validade *</label>
-                    <input value={card.expiry}
-                      onChange={e => setCard(c => ({ ...c, expiry: maskExpiry(e.target.value) }))}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                      placeholder="MM/AA" maxLength={5} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">CVV *</label>
-                    <input value={card.ccv} type="password"
-                      onChange={e => setCard(c => ({ ...c, ccv: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                      placeholder="•••" maxLength={4} />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CPF do titular *</label>
-                  <input value={card.cpf}
-                    onChange={e => setCard(c => ({ ...c, cpf: maskCPF(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                    placeholder="000.000.000-00" maxLength={14} />
-                </div>
-                {error && <p className="text-red-500 text-sm">{error}</p>}
-                <div className="flex gap-3">
-                  <button onClick={() => { setPaymentMethod(null); setError('') }}
-                    className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-                  <button
-                    onClick={handleBook}
-                    disabled={booking || !card.holderName || !card.number || !card.expiry || !card.ccv || !card.cpf}
-                    className="flex-1 py-3 rounded-xl bg-navy-900 text-white font-bold disabled:opacity-50 hover:bg-navy-800 transition-colors">
-                    {booking ? 'Processando...' : `Pagar ${consultaValor ?? ''} →`}
-                  </button>
-                </div>
-              </div>
-            )}
+            <Elements stripe={stripePromise} options={{ clientSecret, locale: 'pt-BR' }}>
+              <StripePaymentForm
+                onSuccess={handlePaymentSuccess}
+                onError={setError}
+                consultaValor={consultaValor}
+              />
+            </Elements>
+            <button onClick={() => { setStep(2); setClientSecret(null); setPendingAppt(null) }}
+              className="mt-4 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-medium text-sm">
+              ← Voltar
+            </button>
           </div>
         )}
 
-        {/* ── Resultado ── */}
         {result && (
           <div className="bg-white rounded-2xl shadow-sm p-8">
-
-            {result.pixQrCode && (
-              <>
-                <div className="text-center mb-5">
-                  <div className="text-5xl mb-3">⚡</div>
-                  <h2 className="text-xl font-bold text-navy-900">Pague com PIX</h2>
-                  <p className="text-gray-500 text-sm mt-1">Escaneie o QR code ou copie o código</p>
-                </div>
-                <div className="flex justify-center mb-4">
-                  <img src={`data:image/png;base64,${result.pixQrCode}`} alt="QR Code PIX"
-                    className="w-52 h-52 border border-gray-100 rounded-xl p-2" />
-                </div>
-                {result.pixCopyCPaste && (
-                  <div className="mb-4">
-                    <button onClick={copyPix}
-                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-600 font-mono text-left break-all hover:bg-gray-100 transition-colors">
-                      {result.pixCopyCPaste}
-                    </button>
-                    <p className="text-xs text-gray-400 mt-1 text-center">
-                      {pixCopied ? '✓ Código copiado!' : 'Clique no código para copiar'}
-                    </p>
-                  </div>
-                )}
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-center mb-5">
-                  <p className="text-blue-700 text-sm font-medium">
-                    Após o pagamento PIX, seu agendamento será confirmado em até 15 minutos.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {!result.pixQrCode && result.paymentUrl && result.billingType === 'BOLETO' && (
-              <>
-                <div className="text-center mb-5">
-                  <div className="text-5xl mb-3">📄</div>
-                  <h2 className="text-xl font-bold text-navy-900">Boleto gerado!</h2>
-                  <p className="text-gray-500 text-sm mt-1">Pague o boleto para confirmar seu agendamento</p>
-                </div>
-                <a href={result.paymentUrl} target="_blank" rel="noopener noreferrer"
-                  className="block w-full py-4 rounded-xl bg-navy-900 text-white font-bold text-center text-base hover:bg-navy-800 transition-colors mb-4">
-                  📥 Abrir/Baixar Boleto
-                </a>
-                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-center mb-5">
-                  <p className="text-yellow-700 text-sm font-medium">
-                    Confirmação em até 3 dias úteis após o pagamento.
-                  </p>
-                </div>
-              </>
-            )}
-
-            {result.cardApproved && (
-              <>
-                <div className="text-center mb-5">
-                  <div className="text-5xl mb-3">✅</div>
-                  <h2 className="text-xl font-bold text-navy-900">Pagamento aprovado!</h2>
-                  <p className="text-gray-500 text-sm mt-1">Seu agendamento está confirmado.</p>
-                </div>
-                <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
-                  <p className="text-green-700 font-semibold text-sm">✓ Pagamento confirmado e horário garantido!</p>
-                </div>
-              </>
-            )}
-
-            {!result.pixQrCode && !result.cardApproved && result.paymentUrl && result.billingType !== 'BOLETO' && (
-              <>
-                <div className="text-center mb-5">
-                  <div className="text-5xl mb-3">💳</div>
-                  <h2 className="text-xl font-bold text-navy-900">Quase lá! Finalize o pagamento</h2>
-                  <p className="text-gray-500 text-sm mt-1">Realize o pagamento para garantir seu horário.</p>
-                </div>
-                <a href={result.paymentUrl} target="_blank" rel="noopener noreferrer"
-                  className="block w-full py-4 rounded-xl bg-navy-900 text-white font-bold text-center text-lg hover:bg-navy-800 transition-colors mb-5">
-                  Pagar agora →
-                </a>
-              </>
-            )}
-
-            {!result.pixQrCode && !result.paymentUrl && !result.cardApproved && (
-              <>
-                <div className="text-center mb-5">
-                  <div className="text-5xl mb-3">✅</div>
+            <div className="text-center mb-5">
+              <div className="text-5xl mb-3">✅</div>
+              {result.paid ? (
+                <>
+                  <h2 className="text-xl font-bold text-navy-900">Pagamento confirmado!</h2>
+                  <p className="text-gray-500 text-sm mt-1">Seu agendamento está garantido.</p>
+                </>
+              ) : (
+                <>
                   <h2 className="text-xl font-bold text-navy-900">Agendamento confirmado!</h2>
                   <p className="text-gray-500 text-sm mt-1">Você receberá um email de confirmação em breve.</p>
-                </div>
-                <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
-                  <p className="text-green-700 font-semibold text-sm">✓ Agendamento confirmado sem cobrança neste momento</p>
-                  <p className="text-green-600 text-xs mt-1">Você e o advogado receberão um email com os detalhes.</p>
-                </div>
-              </>
+                </>
+              )}
+            </div>
+
+            {result.paid ? (
+              <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
+                <p className="text-green-700 font-semibold text-sm">✓ Pagamento aprovado e horário garantido!</p>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
+                <p className="text-green-700 font-semibold text-sm">✓ Agendamento registrado</p>
+                <p className="text-green-600 text-xs mt-1">Você e o advogado receberão um email com os detalhes.</p>
+              </div>
             )}
 
             <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
@@ -719,22 +576,22 @@ export default function Scheduler() {
                 <span className="text-gray-500">Área</span>
                 <span className="font-semibold text-navy-900">{form.specialty || 'Consultoria Jurídica Geral'}</span>
               </div>
-              {result.meetingLink && (
+              {(result.meetingLink || pendingAppt?.meetingLink) && (
                 <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
                   <span className="text-gray-500">Reunião online</span>
-                  <a href={result.meetingLink} target="_blank" rel="noopener noreferrer"
+                  <a href={result.meetingLink || pendingAppt?.meetingLink} target="_blank" rel="noopener noreferrer"
                     className="font-semibold text-blue-600 hover:underline text-right max-w-[60%] break-all">
                     Abrir link →
                   </a>
                 </div>
               )}
-              {!result.meetingLink && address && (
+              {!(result.meetingLink || pendingAppt?.meetingLink) && address && (
                 <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
                   <span className="text-gray-500">Local</span>
                   <span className="font-semibold text-navy-900 text-right max-w-[60%]">{address}</span>
                 </div>
               )}
-              {consultaValor && (
+              {consultaValor && result.paid && (
                 <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
                   <span className="text-gray-500">Valor</span>
                   <span className="font-bold text-navy-900">{consultaValor}</span>
