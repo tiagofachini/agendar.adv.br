@@ -223,18 +223,12 @@ function OfficeSection({ data, onSaved }) {
         <p className="text-xs text-blue-600 font-medium">Dica: selecione apenas as especialidades que você realmente atende — isso ajuda o cliente a confirmar que você é o advogado certo para o caso dele.</p>
       </InfoBlock>
       <Field label="Logo do escritório">
-        <LogoUpload
-          currentUrl={form.logoUrl}
-          lawyerId={lawyer?.id}
-          onChange={url => setForm(f => ({ ...f, logoUrl: url }))}
-        />
+        <LogoUpload currentUrl={form.logoUrl} lawyerId={lawyer?.id} onChange={url => setForm(f => ({ ...f, logoUrl: url }))} />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="CEP">
           <div className="flex gap-2">
-            <input className={inputCls} value={form.cep}
-              onChange={e => setForm({ ...form, cep: e.target.value })}
-              onBlur={lookupCep} placeholder="00000-000" />
+            <input className={inputCls} value={form.cep} onChange={e => setForm({ ...form, cep: e.target.value })} onBlur={lookupCep} placeholder="00000-000" />
             {cepLoading && <span className="text-xs text-gray-400 self-center">Buscando...</span>}
           </div>
         </Field>
@@ -262,18 +256,15 @@ function OfficeSection({ data, onSaved }) {
         </Field>
       </div>
       <Field label="Especialidades do escritório">
-        <input className={inputCls + ' mb-2'} placeholder="Buscar especialidade..."
-          value={specSearch} onChange={e => setSpecSearch(e.target.value)} />
+        <input className={inputCls + ' mb-2'} placeholder="Buscar especialidade..." value={specSearch} onChange={e => setSpecSearch(e.target.value)} />
         <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-          {LEGAL_SPECIALTIES
-            .filter(s => s.toLowerCase().includes(specSearch.toLowerCase()))
-            .map(s => (
-              <button type="button" key={s} onClick={() => toggleSpecialty(s)}
-                className={`text-xs px-3 py-1.5 rounded-full border-2 font-medium transition-colors
-                  ${form.specialties.includes(s) ? 'bg-navy-900 border-navy-900 text-white' : 'border-gray-200 text-gray-600 hover:border-navy-900'}`}>
-                {s}
-              </button>
-            ))}
+          {LEGAL_SPECIALTIES.filter(s => s.toLowerCase().includes(specSearch.toLowerCase())).map(s => (
+            <button type="button" key={s} onClick={() => toggleSpecialty(s)}
+              className={`text-xs px-3 py-1.5 rounded-full border-2 font-medium transition-colors
+                ${form.specialties.includes(s) ? 'bg-navy-900 border-navy-900 text-white' : 'border-gray-200 text-gray-600 hover:border-navy-900'}`}>
+              {s}
+            </button>
+          ))}
         </div>
       </Field>
     </Section>
@@ -286,6 +277,7 @@ function SchedulerSection({ data, onSaved }) {
     schedulerSlug: sc.schedulerSlug || '',
     slotDuration: sc.slotDuration || 60,
     highlightMessage: sc.highlightMessage || '',
+    customMeetingUrl: sc.customMeetingUrl || '',
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -297,6 +289,7 @@ function SchedulerSection({ data, onSaved }) {
       schedulerSlug: sc.schedulerSlug || '',
       slotDuration: sc.slotDuration || 60,
       highlightMessage: sc.highlightMessage || '',
+      customMeetingUrl: sc.customMeetingUrl || '',
     })
   }, [data])
 
@@ -317,13 +310,10 @@ function SchedulerSection({ data, onSaved }) {
         <p className="font-semibold text-navy-900">O que é o endereço de agendamento?</p>
         <p>É o link exclusivo que você compartilha com seus clientes para que eles agendem uma consulta diretamente com você — sem intermediários, sem telefonemas. O cliente acessa, escolhe o horário disponível e confirma o agendamento em poucos cliques.</p>
         <p>O endereço fica no formato <span className="font-semibold text-navy-900">agendar.adv.br/seu-nome</span>. Você pode divulgá-lo no Instagram, no WhatsApp, no cartão de visitas ou na assinatura do seu email.</p>
-        <p className="text-xs text-blue-600 font-medium">Dica: escolha um endereço fácil de lembrar e digitar, de preferência seu nome ou o nome do escritório.</p>
       </InfoBlock>
       <Field label="Endereço personalizado">
         <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-navy-700">
-          <span className="px-3 text-gray-400 text-sm bg-gray-50 border-r border-gray-300 py-2.5 whitespace-nowrap">
-            agendar.adv.br/
-          </span>
+          <span className="px-3 text-gray-400 text-sm bg-gray-50 border-r border-gray-300 py-2.5 whitespace-nowrap">agendar.adv.br/</span>
           <input className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
             value={form.schedulerSlug}
             onChange={e => setForm({ ...form, schedulerSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
@@ -335,13 +325,10 @@ function SchedulerSection({ data, onSaved }) {
             </a>
           )}
         </div>
-        <p className="text-xs text-gray-400 mt-1.5">
-          Use letras minúsculas, números e hífens. O endereço é único — se já estiver em uso você receberá um aviso.
-        </p>
+        <p className="text-xs text-gray-400 mt-1.5">Use letras minúsculas, números e hífens. O endereço é único — se já estiver em uso você receberá um aviso.</p>
       </Field>
       <Field label="Duração de cada consulta">
-        <select className={inputCls} value={form.slotDuration}
-          onChange={e => setForm({ ...form, slotDuration: Number(e.target.value) })}>
+        <select className={inputCls} value={form.slotDuration} onChange={e => setForm({ ...form, slotDuration: Number(e.target.value) })}>
           <option value={30}>30 minutos</option>
           <option value={60}>60 minutos</option>
           <option value={120}>2 horas</option>
@@ -351,6 +338,14 @@ function SchedulerSection({ data, onSaved }) {
         <input className={inputCls} value={form.highlightMessage}
           onChange={e => setForm({ ...form, highlightMessage: e.target.value })}
           placeholder="Ex: Primeira consulta com desconto!" />
+      </Field>
+      <Field label="Link de reunião padrão (Google Meet, Zoom, Teams…)">
+        <input className={inputCls} value={form.customMeetingUrl}
+          onChange={e => setForm({ ...form, customMeetingUrl: e.target.value })}
+          placeholder="https://meet.google.com/xxx-yyyy-zzz" />
+        <p className="text-xs text-gray-400 mt-1.5">
+          Usado quando não há endereço físico configurado. Deixe em branco para gerar link automático (Jitsi).
+        </p>
       </Field>
     </Section>
   )
@@ -399,12 +394,12 @@ function CalendarSection({ data, onSaved }) {
     <Section title="Configurações da agenda" onSubmit={save} loading={loading} saved={saved} error={error}>
       <InfoBlock>
         <p className="font-semibold text-navy-900">Defina sua disponibilidade</p>
-        <p>Estes são os horários e dias que seus clientes verão disponíveis para agendar. Fora dessa janela, nenhum horário será oferecido. Mantenha sempre atualizado para evitar conflitos de agenda.</p>
+        <p>Estes são os horários e dias que seus clientes verão disponíveis para agendar. Fora dessa janela, nenhum horário será oferecido.</p>
         <p>O <span className="font-semibold">valor da consulta por hora</span> é usado pelo sistema para calcular automaticamente o valor cobrado ao cliente via Stripe. Se não quiser cobrança automática, deixe o campo em branco.</p>
       </InfoBlock>
       <Field label="Dias de trabalho">
         <div className="flex gap-2 flex-wrap">
-          {DAYS.map((d, i) => (
+          {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d, i) => (
             <button type="button" key={d} onClick={() => toggleDay(i)}
               className={`w-12 h-12 rounded-xl text-sm font-semibold border-2 transition-colors
                 ${form.workDays.includes(i) ? 'bg-navy-900 border-navy-900 text-white' : 'border-gray-200 text-gray-500 hover:border-navy-900'}`}>
@@ -415,12 +410,10 @@ function CalendarSection({ data, onSaved }) {
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Horário de início">
-          <input type="time" className={inputCls} value={form.workStartTime}
-            onChange={e => setForm({ ...form, workStartTime: e.target.value })} />
+          <input type="time" className={inputCls} value={form.workStartTime} onChange={e => setForm({ ...form, workStartTime: e.target.value })} />
         </Field>
         <Field label="Horário de término">
-          <input type="time" className={inputCls} value={form.workEndTime}
-            onChange={e => setForm({ ...form, workEndTime: e.target.value })} />
+          <input type="time" className={inputCls} value={form.workEndTime} onChange={e => setForm({ ...form, workEndTime: e.target.value })} />
         </Field>
       </div>
       <Field label="Valor da consulta (R$/hora)">

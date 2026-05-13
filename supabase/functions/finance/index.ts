@@ -1,12 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno&no-check'
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
-
-const ASAAS_URL = 'https://api.asaas.com/v3'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
@@ -21,22 +20,31 @@ Deno.serve(async (req) => {
   )
 
   const url = new URL(req.url)
-  const parts = url.pathname.split('/').filter(Boolean)
-  const isBalance = parts.at(-1) === 'balance'
+  const isBalance = url.pathname.endsWith('/balance')
 
   try {
-    if (isBalance) {
-      const { data: s } = await sb.from('LawyerSettings').select('asaasApiKey').maybeSingle()
-      if (!s?.asaasApiKey) return Response.json({ balance: null }, { headers: cors })
+    const { data: lawyer } = await sb
+      .from('Lawyer')
+      .select('id,stripeAccountId,stripeChargesEnabled')
+      .maybeSingle()
 
-      const res = await fetch(`${ASAAS_URL}/finance/balance`, {
-        headers: { access_token: s.asaasApiKey },
-      })
-      const json = await res.json()
-      return Response.json({ balance: json.balance ?? null }, { headers: cors })
+    if (isBalance) {
+      if (!lawyer?.stripeAccountId || !lawyer.stripeChargesEnabled) {
+        return Response.json({ available: null, pending: null }, { headers: cors })
+      }
+
+      const st = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2023-10-16' as const })
+      const balance = await st.balance.retrieve({ stripeAccount: lawyer.stripeAccountId })
+      const brl = (amounts: Stripe.Balance.Available[]) =>
+        (amounts.find(a => a.currency === 'brl')?.amount ?? 0) / 100
+
+      return Response.json(
+        { available: brl(balance.available), pending: brl(balance.pending) },
+        { headers: cors }
+      )
     }
 
-    // ── Payment list ─────────────────────────────────────────────────────────
+    // ── Payment list ─────────────────────────────────────────────────────────────────────────────
     const status = url.searchParams.get('status')
     const page = parseInt(url.searchParams.get('page') ?? '1')
     const pageSize = 20
@@ -51,18 +59,16 @@ Deno.serve(async (req) => {
     const { data: payments, error, count } = await q.range(from, from + pageSize - 1)
     if (error) throw error
 
-    // ── Totals ────────────────────────────────────────────────────────────────
     const { data: all } = await sb.from('Payment').select('status,amount')
     const summary = { paid: 0, pending: 0, overdue: 0, cancelled: 0 }
     for (const p of all ?? []) {
       const amt = parseFloat(p.amount)
-      if (p.status === 'PAID')        summary.paid      += amt
-      else if (p.status === 'PENDING') summary.pending   += amt
-      else if (p.status === 'OVERDUE') summary.overdue   += amt
+      if (p.status === 'PAID') summary.paid += amt
+      else if (p.status === 'PENDING') summary.pending += amt
+      else if (p.status === 'OVERDUE') summary.overdue += amt
       else if (p.status === 'CANCELLED') summary.cancelled += amt
     }
 
-    // ── Chart: últimos 6 meses de pagamentos PAID ─────────────────────────────
     const sixAgo = new Date()
     sixAgo.setMonth(sixAgo.getMonth() - 6)
     const { data: paid } = await sb
