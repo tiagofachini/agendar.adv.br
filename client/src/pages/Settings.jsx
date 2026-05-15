@@ -349,18 +349,20 @@ function hasPhoneNumber(text) {
   return PHONE_RE.test(text)
 }
 
-function SchedulerSection({ data, onSaved }) {
+function SchedulerSection({ data, onSaved, banner }) {
   const sc = data.scheduler || {}
   const [form, setForm] = useState({
     schedulerSlug: sc.schedulerSlug || '',
     slotDuration: sc.slotDuration || 60,
     highlightMessage: sc.highlightMessage || '',
     customMeetingUrl: sc.customMeetingUrl || '',
+    googleCalendarConnected: sc.googleCalendarConnected || false,
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [phoneStripped, setPhoneStripped] = useState(false)
+  const [gcLoading, setGcLoading] = useState(false)
 
   useEffect(() => {
     const sc = data.scheduler || {}
@@ -369,8 +371,28 @@ function SchedulerSection({ data, onSaved }) {
       slotDuration: sc.slotDuration || 60,
       highlightMessage: sc.highlightMessage || '',
       customMeetingUrl: sc.customMeetingUrl || '',
+      googleCalendarConnected: sc.googleCalendarConnected || false,
     })
   }, [data])
+
+  const handleConnectGoogle = async () => {
+    setGcLoading(true)
+    try {
+      const { data: res } = await api.post('/google-calendar/auth-url')
+      if (res.url) window.location.href = res.url
+    } catch {
+      setGcLoading(false)
+    }
+  }
+
+  const handleDisconnectGoogle = async () => {
+    setGcLoading(true)
+    try {
+      await api.post('/google-calendar/disconnect')
+      setForm(f => ({ ...f, googleCalendarConnected: false }))
+    } catch { /* noop */ }
+    setGcLoading(false)
+  }
 
   const handleHighlightChange = (e) => {
     PHONE_RE.lastIndex = 0
@@ -398,6 +420,12 @@ function SchedulerSection({ data, onSaved }) {
 
   return (
     <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved} error={error}>
+      {banner && (
+        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-blue-500'}`} />
+          <p className="font-medium">{banner}</p>
+        </div>
+      )}
       <InfoBlock>
         <p className="font-semibold text-navy-900">O que é o endereço de agendamento?</p>
         <p>É o link exclusivo que você compartilha com seus clientes para que eles agendem uma consulta diretamente com você — sem intermediários, sem telefonemas. O cliente acessa, escolhe o horário disponível e confirma o agendamento em poucos cliques.</p>
@@ -436,14 +464,37 @@ function SchedulerSection({ data, onSaved }) {
           </p>
         )}
       </Field>
-      <Field label="Link de reunião padrão (Google Meet, Zoom, Teams…)">
-        <input className={inputCls} value={form.customMeetingUrl}
-          onChange={e => setForm({ ...form, customMeetingUrl: e.target.value })}
-          placeholder="https://meet.google.com/xxx-yyyy-zzz" />
-        <p className="text-xs text-gray-400 mt-1.5">
-          Usado quando não há endereço físico configurado. Deixe em branco para gerar link automático (Jitsi).
-        </p>
-      </Field>
+      <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-gray-50/40">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Reunião online</p>
+        {form.googleCalendarConnected ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0" />
+              <p className="text-sm font-medium text-green-800">Google Calendar conectado — Meet links gerados automaticamente</p>
+            </div>
+            <button type="button" onClick={handleDisconnectGoogle} disabled={gcLoading}
+              className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 transition-colors flex-shrink-0 ml-4">
+              {gcLoading ? 'Desconectando...' : 'Desconectar'}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">Gere links Google Meet exclusivos para cada agendamento, direto da sua conta Google.</p>
+            <button type="button" onClick={handleConnectGoogle} disabled={gcLoading}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
+              {gcLoading ? 'Redirecionando...' : '📅 Conectar Google Calendar'}
+            </button>
+            <Field label="Ou use um link fixo (Google Meet, Zoom, Teams…)">
+              <input className={inputCls} value={form.customMeetingUrl}
+                onChange={e => setForm({ ...form, customMeetingUrl: e.target.value })}
+                placeholder="https://meet.google.com/xxx-yyyy-zzz" />
+              <p className="text-xs text-gray-400 mt-1.5">
+                Usado quando não há endereço físico configurado. Deixe em branco para gerar link automático (Jitsi).
+              </p>
+            </Field>
+          </div>
+        )}
+      </div>
     </Section>
   )
 }
@@ -682,6 +733,7 @@ export default function Settings() {
   const [settingsData, setSettingsData] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [stripeBanner, setStripeBanner] = useState('')
+  const [calendarBanner, setCalendarBanner] = useState('')
 
   const load = () => {
     setLoadError('')
@@ -693,6 +745,8 @@ export default function Settings() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const stripe = params.get('stripe')
+    const gcCode = params.get('code')
+    const gcState = params.get('state')
     window.history.replaceState({}, '', '/configuracoes')
 
     if (stripe === 'success') {
@@ -712,6 +766,18 @@ export default function Settings() {
       setActiveTab('financial')
       setStripeBanner('O link de cadastro expirou. Clique em "Continuar cadastro" para tentar novamente.')
       load()
+    } else if (gcCode && gcState) {
+      setActiveTab('scheduler')
+      setCalendarBanner('Conectando Google Calendar...')
+      api.post('/google-calendar/exchange', { code: gcCode, state: gcState })
+        .then(() => {
+          setCalendarBanner('✓ Google Calendar conectado! Novos agendamentos gerarão links Google Meet automaticamente.')
+          load()
+        })
+        .catch(() => {
+          setCalendarBanner('Erro ao conectar Google Calendar. Tente desconectar e reconectar.')
+          load()
+        })
     } else {
       load()
     }
@@ -749,7 +815,7 @@ export default function Settings() {
 
       {activeTab === 'account'   && <AccountSection   data={settingsData} onSaved={load} />}
       {activeTab === 'office'    && <OfficeSection     data={settingsData} onSaved={load} />}
-      {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} />}
+      {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} banner={calendarBanner} />}
       {activeTab === 'calendar'  && <CalendarSection   data={settingsData} onSaved={load} />}
       {activeTab === 'financial' && <FinancialSection  data={settingsData} banner={stripeBanner} />}
       {activeTab === 'alerts'    && <AlertsSection     data={settingsData} onSaved={load} />}

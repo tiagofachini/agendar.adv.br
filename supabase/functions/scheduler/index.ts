@@ -78,6 +78,50 @@ async function sendEmail(key: string, to: string, subject: string, html: string)
   })
 }
 
+async function getGoogleAccessToken(refreshToken: string): Promise<string> {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
+      client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET')!,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  const data = await res.json()
+  if (!data.access_token) throw new Error('Falha ao renovar token Google')
+  return data.access_token
+}
+
+async function createGoogleMeetLink(accessToken: string, p: {
+  summary: string; description: string; startISO: string; endISO: string
+}): Promise<string | null> {
+  const res = await fetch(
+    'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=none',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        summary: p.summary,
+        description: p.description,
+        start: { dateTime: p.startISO, timeZone: 'America/Sao_Paulo' },
+        end: { dateTime: p.endISO, timeZone: 'America/Sao_Paulo' },
+        conferenceData: {
+          createRequest: {
+            requestId: crypto.randomUUID(),
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
+          },
+        },
+      }),
+    }
+  )
+  const event = await res.json()
+  const entry = (event?.conferenceData?.entryPoints ?? [])
+    .find((e: { entryPointType: string; uri: string }) => e.entryPointType === 'video')
+  return entry?.uri ?? null
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
 
@@ -220,9 +264,25 @@ Deno.serve(async (req) => {
       const apptDate = new Date(`${selectedDate}T${selectedSlot}:00-03:00`).toISOString()
       const apptId = crypto.randomUUID()
       const hasAddress = !!(s.street && s.city)
-      const meetingLink = hasAddress
-        ? null
-        : (s.customMeetingUrl?.trim() || `https://meet.jit.si/agendaradv${apptId.replace(/-/g, '')}`)
+
+      let meetingLink: string | null = null
+      if (!hasAddress) {
+        if (s.googleCalendarConnected && s.googleCalendarRefreshToken) {
+          try {
+            const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
+            const endISO = new Date(new Date(apptDate).getTime() + (s.slotDuration ?? 60) * 60_000).toISOString()
+            meetingLink = await createGoogleMeetLink(accessToken, {
+              summary: `Consulta jurídica: ${specialty} — ${clientName}`,
+              description: description ? `Descrição: ${description}` : `Consulta com ${clientName}`,
+              startISO: apptDate,
+              endISO,
+            })
+          } catch (_) { /* fallback below */ }
+        }
+        if (!meetingLink) {
+          meetingLink = s.customMeetingUrl?.trim() || `https://meet.jit.si/agendaradv${apptId.replace(/-/g, '')}`
+        }
+      }
 
       const { error: apptErr } = await sb
         .from('Appointment')

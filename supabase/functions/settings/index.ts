@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
             slotDuration: s?.slotDuration ?? 60,
             highlightMessage: s?.highlightMessage ?? '',
             customMeetingUrl: s?.customMeetingUrl ?? '',
+            googleCalendarConnected: s?.googleCalendarConnected ?? false,
           },
           calendar: {
             workDays: s?.workDays ?? [1, 2, 3, 4, 5],
