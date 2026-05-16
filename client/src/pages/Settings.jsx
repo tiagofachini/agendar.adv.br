@@ -745,8 +745,7 @@ export default function Settings() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const stripe = params.get('stripe')
-    const gcCode = params.get('code')
-    const gcState = params.get('state')
+    const calendar = params.get('calendar')
     window.history.replaceState({}, '', '/configuracoes')
 
     if (stripe === 'success') {
@@ -766,18 +765,14 @@ export default function Settings() {
       setActiveTab('financial')
       setStripeBanner('O link de cadastro expirou. Clique em "Continuar cadastro" para tentar novamente.')
       load()
-    } else if (gcCode && gcState) {
+    } else if (calendar === 'success') {
       setActiveTab('scheduler')
-      setCalendarBanner('Conectando Google Calendar...')
-      api.post('/google-calendar/exchange', { code: gcCode, state: gcState })
-        .then(() => {
-          setCalendarBanner('✓ Google Calendar conectado! Novos agendamentos gerarão links Google Meet automaticamente.')
-          load()
-        })
-        .catch(() => {
-          setCalendarBanner('Erro ao conectar Google Calendar. Tente desconectar e reconectar.')
-          load()
-        })
+      setCalendarBanner('✓ Google Calendar conectado! Novos agendamentos gerarão links Google Meet automaticamente.')
+      load()
+    } else if (calendar === 'error') {
+      setActiveTab('scheduler')
+      setCalendarBanner('Erro ao conectar Google Calendar. Tente desconectar e reconectar.')
+      load()
     } else {
       load()
     }

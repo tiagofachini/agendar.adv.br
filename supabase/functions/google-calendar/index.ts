@@ -3,23 +3,82 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
-const REDIRECT_URI = 'https://agendar.adv.br/configuracoes'
+// Server-side callback URL — avoids Supabase JS intercepting ?code= in the SPA
+const REDIRECT_URI = 'https://nfgexlsfmyfypueslzxo.supabase.co/functions/v1/google-calendar/callback'
+const APP_SETTINGS_URL = 'https://agendar.adv.br/configuracoes'
 const GOOGLE_AUTH_BASE = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
+
+  const url = new URL(req.url)
+  const action = url.pathname.split('/').filter(Boolean).at(-1)
+
+  // ── GET /google-calendar/callback — chamado pelo Google após autorização ────
+  // Não exige Authorization header: usa state para identificar o advogado
+  if (req.method === 'GET' && action === 'callback') {
+    const code = url.searchParams.get('code')
+    const state = url.searchParams.get('state')
+
+    if (!code || !state) {
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+    }
+
+    const sbAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    )
+
+    const { data: settings } = await sbAdmin.from('LawyerSettings')
+      .select('lawyerId')
+      .eq('googleOAuthState', state)
+      .maybeSingle()
+
+    if (!settings) {
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+    }
+
+    try {
+      const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
+          client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET')!,
+          redirect_uri: REDIRECT_URI,
+          grant_type: 'authorization_code',
+        }),
+      })
+
+      const tokens = await tokenRes.json()
+
+      if (!tokens.refresh_token) {
+        return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+      }
+
+      await sbAdmin.from('LawyerSettings').update({
+        googleCalendarRefreshToken: tokens.refresh_token,
+        googleCalendarConnected: true,
+        googleOAuthState: null,
+      }).eq('lawyerId', settings.lawyerId)
+
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=success`, 302)
+    } catch {
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+    }
+  }
+
+  // ── Todas as demais rotas exigem autenticação ─────────────────────────────
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
 
   const auth = req.headers.get('Authorization')
   if (!auth) return new Response('Unauthorized', { status: 401, headers: cors })
-
-  const url = new URL(req.url)
-  const action = url.pathname.split('/').filter(Boolean).at(-1)
 
   const sb = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -35,10 +94,7 @@ Deno.serve(async (req) => {
     const { data: lawyer } = await sb.from('Lawyer').select('id').maybeSingle()
     if (!lawyer) return Response.json({ error: 'Perfil não encontrado' }, { status: 404, headers: cors })
 
-    const clientId = Deno.env.get('GOOGLE_CLIENT_ID')!
-    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')!
-
-    // ── POST /google-calendar/auth-url ────────────────────────────────────────
+    // ── POST /google-calendar/auth-url ──────────────────────────────────────
     if (action === 'auth-url') {
       const state = crypto.randomUUID()
 
@@ -48,7 +104,7 @@ Deno.serve(async (req) => {
       )
 
       const params = new URLSearchParams({
-        client_id: clientId,
+        client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
         redirect_uri: REDIRECT_URI,
         response_type: 'code',
         scope: CALENDAR_SCOPE,
@@ -60,53 +116,7 @@ Deno.serve(async (req) => {
       return Response.json({ url: `${GOOGLE_AUTH_BASE}?${params}` }, { headers: cors })
     }
 
-    // ── POST /google-calendar/exchange ────────────────────────────────────────
-    if (action === 'exchange') {
-      const { code, state } = await req.json()
-      if (!code || !state) {
-        return Response.json({ error: 'code e state são obrigatórios' }, { status: 400, headers: cors })
-      }
-
-      const { data: s } = await sb.from('LawyerSettings')
-        .select('googleOAuthState')
-        .eq('lawyerId', lawyer.id)
-        .maybeSingle()
-
-      if (!s?.googleOAuthState || s.googleOAuthState !== state) {
-        return Response.json({ error: 'Estado OAuth inválido ou expirado' }, { status: 400, headers: cors })
-      }
-
-      const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: REDIRECT_URI,
-          grant_type: 'authorization_code',
-        }),
-      })
-
-      const tokens = await tokenRes.json()
-
-      if (!tokens.refresh_token) {
-        return Response.json(
-          { error: 'Token de atualização não recebido. Desconecte e reconecte sua conta Google.' },
-          { status: 400, headers: cors }
-        )
-      }
-
-      await sbAdmin.from('LawyerSettings').update({
-        googleCalendarRefreshToken: tokens.refresh_token,
-        googleCalendarConnected: true,
-        googleOAuthState: null,
-      }).eq('lawyerId', lawyer.id)
-
-      return Response.json({ ok: true }, { headers: cors })
-    }
-
-    // ── POST /google-calendar/disconnect ─────────────────────────────────────
+    // ── POST /google-calendar/disconnect ────────────────────────────────────
     if (action === 'disconnect') {
       await sbAdmin.from('LawyerSettings').update({
         googleCalendarRefreshToken: null,
