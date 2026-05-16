@@ -103,10 +103,22 @@ Deno.serve(async (req) => {
     if (action === 'auth-url') {
       const state = crypto.randomUUID()
 
-      await sbAdmin.from('LawyerSettings').upsert(
-        { lawyerId: lawyer.id, googleOAuthState: state, workDays: [1, 2, 3, 4, 5] },
+      const { data: existing } = await sbAdmin.from('LawyerSettings')
+        .select('id')
+        .eq('lawyerId', lawyer.id)
+        .maybeSingle()
+
+      const { error: upsertErr } = await sbAdmin.from('LawyerSettings').upsert(
+        {
+          id: existing?.id ?? crypto.randomUUID(),
+          lawyerId: lawyer.id,
+          googleOAuthState: state,
+          ...(existing ? {} : { workDays: [1, 2, 3, 4, 5] }),
+        },
         { onConflict: 'lawyerId' }
       )
+
+      if (upsertErr) return Response.json({ error: upsertErr.message }, { status: 500, headers: cors })
 
       const params = new URLSearchParams({
         client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
