@@ -421,8 +421,8 @@ function SchedulerSection({ data, onSaved, banner }) {
   return (
     <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved} error={error}>
       {banner && (
-        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
-          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-blue-500'}`} />
+        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-red-500'}`} />
           <p className="font-medium">{banner}</p>
         </div>
       )}
@@ -746,6 +746,8 @@ export default function Settings() {
     const params = new URLSearchParams(window.location.search)
     const stripe = params.get('stripe')
     const calendar = params.get('calendar')
+    const calendarReason = params.get('reason')
+    const calendarDetail = params.get('detail')
     window.history.replaceState({}, '', '/settings')
 
     if (stripe === 'success') {
@@ -771,7 +773,8 @@ export default function Settings() {
       load()
     } else if (calendar === 'error') {
       setActiveTab('scheduler')
-      setCalendarBanner('Erro ao conectar Google Calendar. Tente desconectar e reconectar.')
+      const reasonMsg = calendarReason ? ` [${calendarReason}${calendarDetail ? ': ' + calendarDetail : ''}]` : ''
+      setCalendarBanner(`Erro ao conectar Google Calendar.${reasonMsg} Tente desconectar e reconectar.`)
       load()
     } else {
       load()
