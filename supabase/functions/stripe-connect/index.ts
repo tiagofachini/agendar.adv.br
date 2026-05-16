@@ -9,6 +9,64 @@ const cors = {
 
 const PLATFORM_FEE_RATE = 0.0005 // 0.05%
 const APP_BASE_URL = 'https://agendar.adv.br'
+const RESEND_URL = 'https://api.resend.com/emails'
+const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
+
+async function getGoogleAccessToken(refreshToken: string): Promise<string> {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: Deno.env.get('GOOGLE_CLIENT_ID')!,
+      client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET')!,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  const data = await res.json()
+  if (!data.access_token) throw new Error('Falha ao renovar token Google')
+  return data.access_token
+}
+
+async function createCalendarEvent(accessToken: string, p: {
+  summary: string; description: string; startISO: string; endISO: string
+  location?: string; attendeeEmail?: string
+}): Promise<string | null> {
+  const body: Record<string, unknown> = {
+    summary: p.summary,
+    description: p.description,
+    start: { dateTime: p.startISO, timeZone: 'America/Sao_Paulo' },
+    end:   { dateTime: p.endISO,   timeZone: 'America/Sao_Paulo' },
+    conferenceData: {
+      createRequest: {
+        requestId: crypto.randomUUID(),
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    },
+  }
+  if (p.location)      body.location  = p.location
+  if (p.attendeeEmail) body.attendees = [{ email: p.attendeeEmail }]
+  const res = await fetch(
+    'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=none',
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  )
+  const event = await res.json()
+  const entry = (event?.conferenceData?.entryPoints ?? [])
+    .find((e: { entryPointType: string; uri: string }) => e.entryPointType === 'video')
+  return entry?.uri ?? null
+}
+
+async function sendEmail(key: string, to: string, subject: string, html: string) {
+  await fetch(RESEND_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+  })
+}
 
 function stripe() {
   return new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2023-10-16' as const })
@@ -77,9 +135,28 @@ async function handleCheckout(req: Request): Promise<Response> {
   const apptDate = new Date(`${selectedDate}T${selectedSlot}:00-03:00`).toISOString()
   const apptId = crypto.randomUUID()
   const hasAddress = !!(s.street && s.city)
-  const meetingLink = hasAddress
-    ? null
-    : (s.customMeetingUrl?.trim() || `https://meet.jit.si/agendaradv${apptId.replace(/-/g, '')}`)
+
+  let meetingLink: string | null = null
+  if (s.googleCalendarConnected && s.googleCalendarRefreshToken) {
+    try {
+      const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
+      const endISO = new Date(new Date(apptDate).getTime() + (s.slotDuration ?? 60) * 60_000).toISOString()
+      const location = hasAddress
+        ? [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
+        : undefined
+      meetingLink = await createCalendarEvent(accessToken, {
+        summary: `Consulta jurídica: ${specialty} — ${clientName}`,
+        description: description ? `Descrição: ${description}` : `Consulta com ${clientName}`,
+        startISO: apptDate,
+        endISO,
+        location,
+        attendeeEmail: clientEmail,
+      })
+    } catch (_) { /* fallback below */ }
+  }
+  if (!meetingLink) {
+    meetingLink = s.customMeetingUrl?.trim() || null
+  }
 
   const { error: apptErr } = await sb.from('Appointment').insert({
     id: apptId, lawyerId: lawyer.id, clientId,
@@ -88,6 +165,61 @@ async function handleCheckout(req: Request): Promise<Response> {
     status: 'PENDING_PAYMENT', meetingLink, updatedAt: new Date().toISOString(),
   })
   if (apptErr) throw apptErr
+
+  const RESEND_KEY = Deno.env.get('RESEND_API_KEY_AGENDAR')
+  if (RESEND_KEY) {
+    try {
+      const apptDateObj = new Date(apptDate)
+      const dateStr = apptDateObj.toLocaleDateString('pt-BR', {
+        timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      })
+      const timeStr = apptDateObj.toLocaleTimeString('pt-BR', {
+        timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit',
+      })
+      const address = [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
+      const locationRow = meetingLink
+        ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Reunião online</td><td style="font-weight:600"><a href="${meetingLink}" style="color:#2563eb">${meetingLink}</a></td></tr>`
+        : address ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Local</td><td style="font-weight:600">${address}</td></tr>` : ''
+      const clientHtml = `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
+        <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+          <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
+          <p style="color:#a0aec0;margin:8px 0 0">Confirmação de agendamento</p>
+        </div>
+        <p>Olá! Seu agendamento com <strong>${lawyer.name}</strong> foi recebido.</p>
+        <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="color:#6b7280;padding:6px 0;width:40%">Data</td><td style="font-weight:600">${dateStr}</td></tr>
+            <tr><td style="color:#6b7280;padding:6px 0">Horário</td><td style="font-weight:600">${timeStr}</td></tr>
+            <tr><td style="color:#6b7280;padding:6px 0">Área</td><td style="font-weight:600">${specialty}</td></tr>
+            ${locationRow}
+          </table>
+        </div>
+        <p style="color:#f59e0b;font-weight:600">⚠ Aguardando confirmação do pagamento.</p>
+        <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv.</p>
+      </body></html>`
+      await sendEmail(RESEND_KEY, clientEmail, `Agendamento recebido — ${lawyer.name}`, clientHtml)
+      if (s.newBookingByEmail !== false && lawyer.email) {
+        const lawyerHtml = `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
+          <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+            <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
+            <p style="color:#a0aec0;margin:8px 0 0">Novo agendamento (aguardando pagamento)</p>
+          </div>
+          <p>Novo agendamento recebido de <strong>${clientName}</strong>.</p>
+          <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
+            <table style="width:100%;border-collapse:collapse">
+              <tr><td style="color:#6b7280;padding:6px 0;width:40%">Cliente</td><td style="font-weight:600">${clientName}</td></tr>
+              <tr><td style="color:#6b7280;padding:6px 0">Email</td><td style="font-weight:600">${clientEmail}</td></tr>
+              <tr><td style="color:#6b7280;padding:6px 0">Data</td><td style="font-weight:600">${dateStr}</td></tr>
+              <tr><td style="color:#6b7280;padding:6px 0">Horário</td><td style="font-weight:600">${timeStr}</td></tr>
+              <tr><td style="color:#6b7280;padding:6px 0">Área</td><td style="font-weight:600">${specialty}</td></tr>
+            </table>
+          </div>
+          <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv.</p>
+        </body></html>`
+        await sendEmail(RESEND_KEY, lawyer.email, `Novo agendamento — ${clientName}`, lawyerHtml)
+      }
+    } catch (_) {}
+  }
 
   const st = stripe()
   const paymentIntent = await st.paymentIntents.create({
@@ -167,8 +299,8 @@ Deno.serve(async (req) => {
 
       const accountLink = await st.accountLinks.create({
         account: accountId,
-        refresh_url: `${APP_BASE_URL}/configuracoes?stripe=refresh`,
-        return_url: `${APP_BASE_URL}/configuracoes?stripe=success`,
+        refresh_url: `${APP_BASE_URL}/settings?stripe=refresh`,
+        return_url: `${APP_BASE_URL}/settings?stripe=success`,
         type: 'account_onboarding',
       })
 
@@ -182,8 +314,8 @@ Deno.serve(async (req) => {
 
       const accountLink = await st.accountLinks.create({
         account: lawyer.stripeAccountId,
-        refresh_url: `${APP_BASE_URL}/configuracoes?stripe=refresh`,
-        return_url: `${APP_BASE_URL}/configuracoes?stripe=success`,
+        refresh_url: `${APP_BASE_URL}/settings?stripe=refresh`,
+        return_url: `${APP_BASE_URL}/settings?stripe=success`,
         type: 'account_onboarding',
       })
 

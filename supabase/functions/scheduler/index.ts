@@ -32,7 +32,7 @@ function clientEmailHtml(p: {
       ${locationRow}
     </table>
   </div>
-  <p style="color:#16a34a;font-weight:600">✓ Agendamento recebido! Você será notificado por email após a confirmação do pagamento.</p>
+  <p style="color:#16a34a;font-weight:600">✓ Agendamento confirmado!</p>
   <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv. Não responda este email.</p>
 </body></html>`
 }
@@ -288,7 +288,7 @@ Deno.serve(async (req) => {
             endISO,
             location,
             attendeeEmail: clientEmail,
-            withMeet: !hasAddress,
+            withMeet: true,
           })
         } catch (_) { /* fallback below */ }
       }
