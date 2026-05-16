@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     const state = url.searchParams.get('state')
 
     if (!code || !state) {
-      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error&reason=missing_params`, 302)
     }
 
     const sbAdmin = createClient(
@@ -34,13 +34,17 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
-    const { data: settings } = await sbAdmin.from('LawyerSettings')
+    const { data: settings, error: stateErr } = await sbAdmin.from('LawyerSettings')
       .select('lawyerId')
       .eq('googleOAuthState', state)
       .maybeSingle()
 
+    if (stateErr) {
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error&reason=db_error&detail=${encodeURIComponent(stateErr.message)}`, 302)
+    }
+
     if (!settings) {
-      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error&reason=state_not_found`, 302)
     }
 
     try {
@@ -59,7 +63,8 @@ Deno.serve(async (req) => {
       const tokens = await tokenRes.json()
 
       if (!tokens.refresh_token) {
-        return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+        const detail = tokens.error ? `${tokens.error}:${tokens.error_description}` : 'no_refresh_token'
+        return Response.redirect(`${APP_SETTINGS_URL}?calendar=error&reason=token_exchange&detail=${encodeURIComponent(detail)}`, 302)
       }
 
       await sbAdmin.from('LawyerSettings').update({
@@ -69,8 +74,8 @@ Deno.serve(async (req) => {
       }).eq('lawyerId', settings.lawyerId)
 
       return Response.redirect(`${APP_SETTINGS_URL}?calendar=success`, 302)
-    } catch {
-      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error`, 302)
+    } catch (err) {
+      return Response.redirect(`${APP_SETTINGS_URL}?calendar=error&reason=exception&detail=${encodeURIComponent(err.message)}`, 302)
     }
   }
 
