@@ -8,7 +8,7 @@ const cors = {
 
 // Server-side callback URL — avoids Supabase JS intercepting ?code= in the SPA
 const REDIRECT_URI = 'https://nfgexlsfmyfypueslzxo.supabase.co/functions/v1/google-calendar/callback'
-const APP_SETTINGS_URL = 'https://agendar.adv.br/configuracoes'
+const APP_SETTINGS_URL = 'https://agendar.adv.br/settings'
 const GOOGLE_AUTH_BASE = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events'

@@ -746,7 +746,7 @@ export default function Settings() {
     const params = new URLSearchParams(window.location.search)
     const stripe = params.get('stripe')
     const calendar = params.get('calendar')
-    window.history.replaceState({}, '', '/configuracoes')
+    window.history.replaceState({}, '', '/settings')
 
     if (stripe === 'success') {
       setActiveTab('financial')
