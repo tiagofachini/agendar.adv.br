@@ -5,9 +5,10 @@ import { supabase } from '../lib/supabase'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
 const TABS = [
+  { key: 'google',    label: '🔗 Google' },
   { key: 'account',   label: '👤 Conta' },
   { key: 'office',    label: '🏢 Escritório' },
-  { key: 'scheduler', label: '🔗 Agendador' },
+  { key: 'scheduler', label: '📋 Agendador' },
   { key: 'calendar',  label: '📅 Agenda' },
   { key: 'financial', label: '💳 Financeiro' },
   { key: 'alerts',    label: '🔔 Alertas' },
@@ -338,6 +339,145 @@ function OfficeSection({ data, onSaved }) {
   )
 }
 
+const GOOGLE_BENEFITS = [
+  {
+    icon: '🔑',
+    title: 'Login unificado',
+    desc: 'Entre no sistema com um clique usando sua conta Google. Sem senhas para criar ou lembrar — segurança máxima com a autenticação do Google.',
+  },
+  {
+    icon: '📅',
+    title: 'Google Agenda',
+    desc: 'Todos os compromissos agendados pelo sistema aparecem automaticamente na sua Google Agenda. Nunca perca um horário.',
+  },
+  {
+    icon: '🎥',
+    title: 'Google Meet automático',
+    desc: 'Um link de videochamada exclusivo é gerado para cada consulta online. Seu cliente recebe o link por email na confirmação.',
+  },
+]
+
+function GoogleIntegrationSection({ data, onSaved, banner }) {
+  const sc = data.scheduler || {}
+  const isConnected = sc.googleCalendarConnected || false
+  const [gcLoading, setGcLoading] = useState(false)
+
+  const handleConnect = async () => {
+    setGcLoading(true)
+    try {
+      const { data: res } = await api.post('/google-calendar/auth-url')
+      if (res.url) window.location.href = res.url
+    } catch {
+      setGcLoading(false)
+    }
+  }
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Desconectar a integração com Google? Novos agendamentos não gerarão links Meet automáticos.')) return
+    setGcLoading(true)
+    try {
+      await api.post('/google-calendar/disconnect')
+      onSaved()
+    } catch { /* noop */ }
+    setGcLoading(false)
+  }
+
+  return (
+    <div className="space-y-5">
+      {banner && (
+        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-red-500'}`} />
+          <p className="font-medium">{banner}</p>
+        </div>
+      )}
+
+      {/* Hero */}
+      <div className="bg-navy-900 rounded-2xl p-6 text-white">
+        <div className="flex items-center gap-3 mb-2">
+          <svg className="w-8 h-8 flex-shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          <div>
+            <h3 className="font-bold text-lg leading-tight">Integração com Google</h3>
+            <p className="text-gray-400 text-sm">A configuração mais importante do sistema</p>
+          </div>
+        </div>
+        <p className="text-gray-300 text-sm leading-relaxed mt-3">
+          Conectar sua conta Google transforma o AgendarAdv em uma ferramenta completa: login seguro, agenda sincronizada automaticamente e links de videochamada gerados para cada consulta online — tudo sem configuração adicional.
+        </p>
+      </div>
+
+      {/* Benefícios */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {GOOGLE_BENEFITS.map((b) => (
+          <div key={b.title} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+            <div className="text-3xl mb-3">{b.icon}</div>
+            <h4 className="font-bold text-navy-900 text-sm mb-1.5">{b.title}</h4>
+            <p className="text-xs text-gray-500 leading-relaxed">{b.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Status e ação */}
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        {isConnected ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
+              <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold text-green-800 text-sm">Conta Google conectada e ativa</p>
+                <p className="text-xs text-green-600 mt-0.5">Login, agenda e links Meet estão funcionando automaticamente.</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {['Agendamentos sincronizados com Google Agenda', 'Links Google Meet gerados automaticamente', 'Login disponível via Google'].map(item => (
+                <div key={item} className="flex items-center gap-2 text-sm text-gray-600">
+                  <span className="text-green-500 font-bold flex-shrink-0">✓</span> {item}
+                </div>
+              ))}
+            </div>
+            <div className="pt-2 border-t border-gray-100">
+              <button onClick={handleDisconnect} disabled={gcLoading}
+                className="text-sm text-red-500 hover:text-red-700 font-medium disabled:opacity-50 transition-colors">
+                {gcLoading ? 'Desconectando...' : 'Desconectar conta Google'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+              <div className="w-3 h-3 bg-amber-400 rounded-full flex-shrink-0" />
+              <p className="text-sm text-amber-800 font-medium">Conta Google não conectada — benefícios limitados</p>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Sem a integração, os agendamentos não aparecem na sua Google Agenda e não há links de videochamada automáticos. Conecte agora em menos de um minuto.
+            </p>
+            <button onClick={handleConnect} disabled={gcLoading}
+              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl border-2 border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50">
+              {gcLoading ? (
+                <span>Redirecionando para o Google...</span>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                  Conectar com Google
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Detects Brazilian phone number patterns: (XX) XXXXX-XXXX, +55..., 8+ consecutive digits
 const PHONE_RE = /(\+?55[\s-]?)?(\(?\d{2}\)?\s?)(\d{4,5}[-\s]?\d{4})|\d{8,}/g
 
@@ -349,20 +489,18 @@ function hasPhoneNumber(text) {
   return PHONE_RE.test(text)
 }
 
-function SchedulerSection({ data, onSaved, banner }) {
+function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
   const sc = data.scheduler || {}
   const [form, setForm] = useState({
     schedulerSlug: sc.schedulerSlug || '',
     slotDuration: sc.slotDuration || 60,
     highlightMessage: sc.highlightMessage || '',
     customMeetingUrl: sc.customMeetingUrl || '',
-    googleCalendarConnected: sc.googleCalendarConnected || false,
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [phoneStripped, setPhoneStripped] = useState(false)
-  const [gcLoading, setGcLoading] = useState(false)
 
   useEffect(() => {
     const sc = data.scheduler || {}
@@ -371,28 +509,8 @@ function SchedulerSection({ data, onSaved, banner }) {
       slotDuration: sc.slotDuration || 60,
       highlightMessage: sc.highlightMessage || '',
       customMeetingUrl: sc.customMeetingUrl || '',
-      googleCalendarConnected: sc.googleCalendarConnected || false,
     })
   }, [data])
-
-  const handleConnectGoogle = async () => {
-    setGcLoading(true)
-    try {
-      const { data: res } = await api.post('/google-calendar/auth-url')
-      if (res.url) window.location.href = res.url
-    } catch {
-      setGcLoading(false)
-    }
-  }
-
-  const handleDisconnectGoogle = async () => {
-    setGcLoading(true)
-    try {
-      await api.post('/google-calendar/disconnect')
-      setForm(f => ({ ...f, googleCalendarConnected: false }))
-    } catch { /* noop */ }
-    setGcLoading(false)
-  }
 
   const handleHighlightChange = (e) => {
     PHONE_RE.lastIndex = 0
@@ -421,8 +539,8 @@ function SchedulerSection({ data, onSaved, banner }) {
   return (
     <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved} error={error}>
       {banner && (
-        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
-          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-red-500'}`} />
+        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-blue-500'}`} />
           <p className="font-medium">{banner}</p>
         </div>
       )}
@@ -465,34 +583,26 @@ function SchedulerSection({ data, onSaved, banner }) {
         )}
       </Field>
       <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-gray-50/40">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Reunião online</p>
-        {form.googleCalendarConnected ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 bg-green-500 rounded-full flex-shrink-0" />
-              <p className="text-sm font-medium text-green-800">Google Calendar conectado — Meet links gerados automaticamente</p>
-            </div>
-            <button type="button" onClick={handleDisconnectGoogle} disabled={gcLoading}
-              className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 transition-colors flex-shrink-0 ml-4">
-              {gcLoading ? 'Desconectando...' : 'Desconectar'}
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Reunião online</p>
+          {sc.googleCalendarConnected ? (
+            <span className="text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full">✓ Google Meet ativo</span>
+          ) : (
+            <button type="button" onClick={onGoToGoogle}
+              className="text-xs font-medium text-navy-700 hover:underline">
+              Configurar integração Google →
             </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-gray-600">Gere links Google Meet exclusivos para cada agendamento, direto da sua conta Google.</p>
-            <button type="button" onClick={handleConnectGoogle} disabled={gcLoading}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
-              {gcLoading ? 'Redirecionando...' : '📅 Conectar Google Calendar'}
-            </button>
-            <Field label="Ou use um link fixo (Google Meet, Zoom, Teams…)">
-              <input className={inputCls} value={form.customMeetingUrl}
-                onChange={e => setForm({ ...form, customMeetingUrl: e.target.value })}
-                placeholder="https://meet.google.com/xxx-yyyy-zzz" />
-              <p className="text-xs text-gray-400 mt-1.5">
-                Usado quando não há endereço físico configurado. Deixe em branco para gerar link automático (Jitsi).
-              </p>
-            </Field>
-          </div>
+          )}
+        </div>
+        {!sc.googleCalendarConnected && (
+          <Field label="Link fixo de reunião (Google Meet, Zoom, Teams…)">
+            <input className={inputCls} value={form.customMeetingUrl}
+              onChange={e => setForm({ ...form, customMeetingUrl: e.target.value })}
+              placeholder="https://meet.google.com/xxx-yyyy-zzz" />
+            <p className="text-xs text-gray-400 mt-1.5">
+              Usado quando não há endereço físico configurado. Conecte o Google para gerar links automáticos.
+            </p>
+          </Field>
         )}
       </div>
     </Section>
@@ -729,7 +839,7 @@ function AlertsSection({ data, onSaved }) {
 }
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState('account')
+  const [activeTab, setActiveTab] = useState('google')
   const [settingsData, setSettingsData] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [stripeBanner, setStripeBanner] = useState('')
@@ -768,11 +878,11 @@ export default function Settings() {
       setStripeBanner('O link de cadastro expirou. Clique em "Continuar cadastro" para tentar novamente.')
       load()
     } else if (calendar === 'success') {
-      setActiveTab('scheduler')
+      setActiveTab('google')
       setCalendarBanner('✓ Google Calendar conectado! Novos agendamentos gerarão links Google Meet automaticamente.')
       load()
     } else if (calendar === 'error') {
-      setActiveTab('scheduler')
+      setActiveTab('google')
       const reasonMsg = calendarReason ? ` [${calendarReason}${calendarDetail ? ': ' + calendarDetail : ''}]` : ''
       setCalendarBanner(`Erro ao conectar Google Calendar.${reasonMsg} Tente desconectar e reconectar.`)
       load()
@@ -802,18 +912,26 @@ export default function Settings() {
       </div>
 
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
-        {TABS.map(({ key, label }) => (
-          <button key={key} onClick={() => setActiveTab(key)}
-            className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
-              ${activeTab === key ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {label}
-          </button>
-        ))}
+        {TABS.map(({ key, label }) => {
+          const isGoogle = key === 'google'
+          const googleNotConnected = isGoogle && !(settingsData?.scheduler?.googleCalendarConnected)
+          return (
+            <button key={key} onClick={() => setActiveTab(key)}
+              className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative
+                ${activeTab === key ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              {label}
+              {googleNotConnected && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-400 rounded-full" />
+              )}
+            </button>
+          )
+        })}
       </div>
 
+      {activeTab === 'google'    && <GoogleIntegrationSection data={settingsData} onSaved={load} banner={calendarBanner} />}
       {activeTab === 'account'   && <AccountSection   data={settingsData} onSaved={load} />}
       {activeTab === 'office'    && <OfficeSection     data={settingsData} onSaved={load} />}
-      {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} banner={calendarBanner} />}
+      {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} banner={calendarBanner} onGoToGoogle={() => setActiveTab('google')} />}
       {activeTab === 'calendar'  && <CalendarSection   data={settingsData} onSaved={load} />}
       {activeTab === 'financial' && <FinancialSection  data={settingsData} banner={stripeBanner} />}
       {activeTab === 'alerts'    && <AlertsSection     data={settingsData} onSaved={load} />}
