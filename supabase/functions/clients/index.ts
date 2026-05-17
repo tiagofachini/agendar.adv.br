@@ -19,7 +19,8 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url)
   const parts = url.pathname.split('/').filter(Boolean)
-  const id = parts.at(-1) !== 'clients' ? parts.at(-1) : null
+  const last = parts.at(-1)
+  const id = last !== 'clients' ? last : null
 
   try {
     if (req.method === 'GET' && id) {
@@ -65,6 +66,34 @@ Deno.serve(async (req) => {
         .single()
       if (error) throw error
       return Response.json(data, { status: 201, headers: cors })
+    }
+
+    if (req.method === 'PUT' && id && id !== 'bulk') {
+      const body = await req.json()
+      const { data, error } = await sb
+        .from('Client')
+        .update(body)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return Response.json(data, { headers: cors })
+    }
+
+    if (req.method === 'DELETE' && id === 'bulk') {
+      const { ids } = await req.json()
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return Response.json({ error: 'ids required' }, { status: 400, headers: cors })
+      }
+      const { error } = await sb.from('Client').delete().in('id', ids)
+      if (error) throw error
+      return new Response(null, { status: 204, headers: cors })
+    }
+
+    if (req.method === 'DELETE' && id) {
+      const { error } = await sb.from('Client').delete().eq('id', id)
+      if (error) throw error
+      return new Response(null, { status: 204, headers: cors })
     }
 
     return new Response('Not Found', { status: 404, headers: cors })

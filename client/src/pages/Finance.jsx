@@ -7,10 +7,10 @@ import {
 import api from '../lib/api'
 
 const TABS = [
-  { value: '',         label: 'Todos' },
-  { value: 'PAID',     label: 'Recebidos' },
-  { value: 'PENDING',  label: 'A receber' },
-  { value: 'OVERDUE',  label: 'Vencidos' },
+  { value: '',        label: 'Todos' },
+  { value: 'PAID',    label: 'Recebidos' },
+  { value: 'PENDING', label: 'A receber' },
+  { value: 'OVERDUE', label: 'Vencidos' },
 ]
 
 const STATUS_STYLE = {
@@ -20,6 +20,12 @@ const STATUS_STYLE = {
   CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-400' },
   REFUNDED:  { label: 'Estornado', color: 'bg-purple-100 text-purple-600' },
 }
+
+const BULK_STATUS_OPTIONS = [
+  { value: 'PAID',      label: 'Marcar como Recebido' },
+  { value: 'PENDING',   label: 'Marcar como A receber' },
+  { value: 'CANCELLED', label: 'Marcar como Cancelado' },
+]
 
 const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
 
@@ -50,26 +56,56 @@ export default function Finance() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState(new Set())
+  const [bulkAction, setBulkAction] = useState('')
 
   useEffect(() => {
     setLoading(true); setError('')
     api.get(`/finance?status=${tab}&page=${page}`)
-      .then((r) => setData(r.data))
-      .catch((err) => setError(err.response?.data?.error || 'Erro ao carregar financeiro'))
+      .then(r => setData(r.data))
+      .catch(err => setError(err.response?.data?.error || 'Erro ao carregar financeiro'))
       .finally(() => setLoading(false))
   }, [tab, page])
 
   useEffect(() => {
-    api.get('/finance/balance')
-      .then((r) => setBalance(r.data))
-      .catch(() => {})
-
-    api.get('/stripe-connect/dashboard-link')
-      .then((r) => setDashLink(r.data.url))
-      .catch(() => {})
+    api.get('/finance/balance').then(r => setBalance(r.data)).catch(() => {})
+    api.get('/stripe-connect/dashboard-link').then(r => setDashLink(r.data.url)).catch(() => {})
   }, [])
 
-  const handleTabChange = (v) => { setTab(v); setPage(1) }
+  const handleTabChange = (v) => { setTab(v); setPage(1); clearSelect() }
+
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const clearSelect = () => { setSelected(new Set()); setSelectMode(false); setBulkAction('') }
+
+  const selectAll = () => setSelected(new Set((data?.payments ?? []).map(p => p.id)))
+
+  const bulkDelete = async () => {
+    if (!window.confirm(`Excluir ${selected.size} registro(s) financeiro(s)?`)) return
+    await api.delete('/finance/bulk', { data: { ids: [...selected] } })
+    setData(prev => ({
+      ...prev,
+      payments: prev.payments.filter(p => !selected.has(p.id)),
+    }))
+    clearSelect()
+  }
+
+  const applyBulkStatus = async () => {
+    if (!bulkAction) return
+    await api.put('/finance/bulk', { ids: [...selected], status: bulkAction })
+    setData(prev => ({
+      ...prev,
+      payments: prev.payments.map(p => selected.has(p.id) ? { ...p, status: bulkAction } : p),
+    }))
+    clearSelect()
+  }
 
   const summary = data?.summary ?? { paid: 0, pending: 0, overdue: 0, cancelled: 0 }
   const payments = data?.payments ?? []
@@ -78,9 +114,17 @@ export default function Finance() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-navy-900">Financeiro</h1>
-        <p className="text-sm text-gray-500">Controle de recebíveis e pagamentos</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-navy-900">Financeiro</h1>
+          <p className="text-sm text-gray-500">Controle de recebíveis e pagamentos</p>
+        </div>
+        <button
+          onClick={() => { setSelectMode(s => !s); setSelected(new Set()) }}
+          className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors
+            ${selectMode ? 'bg-navy-900 text-white border-navy-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+          Selecionar
+        </button>
       </div>
 
       {/* Saldo Stripe */}
@@ -110,9 +154,7 @@ export default function Finance() {
         </div>
       )}
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
-      )}
+      {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>}
 
       {/* Resumo */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -148,12 +190,9 @@ export default function Finance() {
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="flex border-b border-gray-100">
           {TABS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => handleTabChange(value)}
+            <button key={value} onClick={() => handleTabChange(value)}
               className={`flex-1 py-4 text-sm font-medium transition-colors
-                ${tab === value ? 'text-navy-900 border-b-2 border-navy-900' : 'text-gray-400 hover:text-gray-700'}`}
-            >
+                ${tab === value ? 'text-navy-900 border-b-2 border-navy-900' : 'text-gray-400 hover:text-gray-700'}`}>
               {label}
             </button>
           ))}
@@ -173,8 +212,18 @@ export default function Finance() {
             {payments.map((p) => {
               const st = STATUS_STYLE[p.status] || STATUS_STYLE.CANCELLED
               const apptDate = p.appointment?.date
+              const isChecked = selected.has(p.id)
               return (
-                <div key={p.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div key={p.id}
+                  onClick={() => selectMode && toggleSelect(p.id)}
+                  className={`flex items-center gap-3 px-6 py-4 transition-colors
+                    ${selectMode ? 'cursor-pointer hover:bg-gray-50' : 'hover:bg-gray-50'}
+                    ${isChecked ? 'bg-navy-50' : ''}`}>
+                  {selectMode && (
+                    <input type="checkbox" checked={isChecked} onChange={() => toggleSelect(p.id)}
+                      onClick={e => e.stopPropagation()}
+                      className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-navy-900 truncate">{p.client?.name || 'Cliente não vinculado'}</p>
                     <p className="text-xs text-gray-400">
@@ -194,7 +243,6 @@ export default function Finance() {
           </div>
         )}
 
-        {/* Paginação */}
         {pages > 1 && (
           <div className="flex items-center justify-center gap-3 py-4 border-t border-gray-100">
             <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
@@ -205,6 +253,34 @@ export default function Finance() {
           </div>
         )}
       </div>
+
+      {/* Barra de ações em lote */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+          <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
+          <button onClick={selectAll} className="text-xs text-gray-300 hover:text-white underline">Todos</button>
+          <div className="flex items-center gap-2">
+            <select value={bulkAction} onChange={e => setBulkAction(e.target.value)}
+              className="text-sm bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white focus:outline-none">
+              <option value="">Alterar status...</option>
+              {BULK_STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {bulkAction && (
+              <button onClick={applyBulkStatus}
+                className="text-sm bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded-lg transition-colors">
+                Aplicar
+              </button>
+            )}
+          </div>
+          <button onClick={bulkDelete}
+            className="text-sm bg-red-500 hover:bg-red-400 px-3 py-1 rounded-lg transition-colors">
+            Excluir
+          </button>
+          <button onClick={clearSelect} className="text-gray-300 hover:text-white text-lg">×</button>
+        </div>
+      )}
     </div>
   )
 }
