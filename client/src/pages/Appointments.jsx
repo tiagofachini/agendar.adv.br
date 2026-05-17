@@ -40,6 +40,7 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
+// ── Editor de texto rico (contenteditable) ────────────────────────────────────
 function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...' }) {
   const ref = useRef(null)
   const initialized = useRef(false)
@@ -85,6 +86,7 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
   )
 }
 
+// ── Modal de compromisso ──────────────────────────────────────────────────────
 function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
@@ -117,7 +119,11 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
         onSaved({ ...initial, status: form.status, description: form.description, attendanceNotes: form.attendanceNotes })
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao salvar')
+      const msg = err.response?.data?.error
+        || (typeof err.response?.data === 'string' ? err.response.data : null)
+        || err.message
+        || 'Erro ao salvar'
+      setError(msg)
     } finally { setLoading(false) }
   }
 
@@ -158,8 +164,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
                 {LEGAL_SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-          </>
-          }
+          </>}
           {!isNew && (
             <div className="bg-gray-50 rounded-xl p-4 space-y-1">
               <p className="font-semibold text-navy-900">{initial.clientName}</p>
@@ -188,7 +193,9 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Observações do cliente</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {isNew ? 'Observações do cliente' : 'Observações do cliente'}
+            </label>
             <textarea rows={3} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
               placeholder="Descrição relatada pelo cliente" />
           </div>
@@ -231,6 +238,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   )
 }
 
+// ── View Semanal ──────────────────────────────────────────────────────────────
 function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) {
   const days = eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) })
   const byDay = days.map(d => appointments.filter(a => isSameDay(new Date(a.date), d)))
@@ -280,7 +288,8 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
   )
 }
 
-function ListView({ appointments, onAppointmentClick, selected, onToggle, selectMode }) {
+// ── View Lista ────────────────────────────────────────────────────────────────
+function ListView({ appointments, onAppointmentClick, selected, onToggle }) {
   if (!appointments.length) return (
     <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
       <div className="text-5xl mb-3">📅</div>
@@ -296,12 +305,10 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, select
         return (
           <div key={a.id}
             className="flex items-center gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer last:border-0"
-            onClick={() => selectMode ? onToggle(a.id) : onAppointmentClick(a)}>
-            {selectMode && (
-              <input type="checkbox" checked={isChecked} onChange={() => onToggle(a.id)}
-                onClick={e => e.stopPropagation()}
-                className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
-            )}
+            onClick={() => onAppointmentClick(a)}>
+            <input type="checkbox" checked={isChecked} onChange={() => onToggle(a.id)}
+              onClick={e => e.stopPropagation()}
+              className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
             <div className="text-center flex-shrink-0 w-12">
               <div className="text-xs text-gray-400 font-medium">{format(new Date(a.date), 'EEE', { locale: ptBR })}</div>
               <div className="text-xl font-bold text-navy-900">{format(new Date(a.date), 'd')}</div>
@@ -322,6 +329,7 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, select
   )
 }
 
+// ── Página principal ──────────────────────────────────────────────────────────
 export default function Appointments() {
   const [view, setView] = useState('week')
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
@@ -329,7 +337,6 @@ export default function Appointments() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [statusFilter, setStatusFilter] = useState('')
-  const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [bulkStatus, setBulkStatus] = useState('')
 
@@ -347,6 +354,7 @@ export default function Appointments() {
 
   useEffect(() => { load() }, [load])
 
+  // Filtro de status (client-side)
   const filtered = statusFilter
     ? appointments.filter(a => a.status === statusFilter)
     : appointments
@@ -360,7 +368,7 @@ export default function Appointments() {
   }
 
   const selectAll = () => setSelected(new Set(filtered.map(a => a.id)))
-  const clearSelect = () => { setSelected(new Set()); setSelectMode(false) }
+  const clearSelect = () => setSelected(new Set())
 
   const bulkDelete = async () => {
     if (!window.confirm(`Excluir ${selected.size} compromisso(s)?`)) return
@@ -399,6 +407,7 @@ export default function Appointments() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-navy-900">Compromissos</h1>
@@ -409,6 +418,7 @@ export default function Appointments() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Filtro de status */}
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-navy-700">
             <option value="">Todos os status</option>
@@ -417,6 +427,7 @@ export default function Appointments() {
             <option value="COMPLETED">Realizado</option>
             <option value="CANCELLED">Cancelado</option>
           </select>
+          {/* View switcher */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
             {[{ v: 'week', l: 'Semana' }, { v: 'list', l: 'Lista' }].map(({ v, l }) => (
               <button key={v} onClick={() => { setView(v); clearSelect() }}
@@ -426,13 +437,6 @@ export default function Appointments() {
               </button>
             ))}
           </div>
-          {view === 'list' && (
-            <button onClick={() => { setSelectMode(s => !s); setSelected(new Set()) }}
-              className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors
-                ${selectMode ? 'bg-navy-900 text-white border-navy-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-              Selecionar
-            </button>
-          )}
           <button
             onClick={() => setModal({ mode: 'new', date: format(new Date(), 'yyyy-MM-dd'), time: '09:00' })}
             className="px-4 py-2.5 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors">
@@ -441,6 +445,7 @@ export default function Appointments() {
         </div>
       </div>
 
+      {/* Navegação semana */}
       {view === 'week' && (
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => setWeekStart(subWeeks(weekStart, 1))}
@@ -467,10 +472,10 @@ export default function Appointments() {
           onAppointmentClick={(a) => setModal({ mode: 'edit', appointment: a })}
           selected={selected}
           onToggle={toggleSelect}
-          selectMode={selectMode}
         />
       )}
 
+      {/* Legenda */}
       <div className="mt-4 space-y-2">
         {[
           { label: 'Agendado manualmente', src: 'MANUAL' },
@@ -488,6 +493,7 @@ export default function Appointments() {
         ))}
       </div>
 
+      {/* Barra de ações em lote */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
           <span className="text-sm font-medium">{selected.size} selecionado(s)</span>

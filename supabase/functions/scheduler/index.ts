@@ -123,6 +123,10 @@ async function createCalendarEvent(accessToken: string, p: {
       body: JSON.stringify(body),
     }
   )
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}))
+    throw new Error(errBody?.error?.message || `Google Calendar HTTP ${res.status}`)
+  }
   const event = await res.json()
   if (!p.withMeet) return null
   const entry = (event?.conferenceData?.entryPoints ?? [])

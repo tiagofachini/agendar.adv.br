@@ -16,7 +16,9 @@ function toE164(phone: string): string {
 async function sendTwilioMessage(to: string, body: string): Promise<string> {
   const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')!
   const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')!
-  const from = Deno.env.get('TWILIO_WHATSAPP_FROM')!
+  const rawFrom = Deno.env.get('TWILIO_WHATSAPP_FROM')!
+  const from = rawFrom.startsWith('whatsapp:') ? rawFrom : `whatsapp:${rawFrom}`
+  const toWa = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`
 
   const res = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
@@ -26,7 +28,7 @@ async function sendTwilioMessage(to: string, body: string): Promise<string> {
         Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({ From: from, To: `whatsapp:${to}`, Body: body }),
+      body: new URLSearchParams({ From: from, To: toWa, Body: body }),
     }
   )
   const data = await res.json()
@@ -41,6 +43,7 @@ Deno.serve(async (req) => {
   const parts = url.pathname.split('/').filter(Boolean)
   const action = parts.at(-1)
 
+  // ── Webhook Twilio para mensagens recebidas (sem autenticação) ────────────
   if (req.method === 'POST' && action === 'webhook') {
     const sbAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -56,6 +59,7 @@ Deno.serve(async (req) => {
       const fromDigits = from.replace(/\D/g, '')
       if (!fromDigits || !body) return new Response('OK', { status: 200 })
 
+      // Busca client pelo sufixo do número (últimos 9 dígitos)
       const suffix = fromDigits.slice(-9)
       const { data: client } = await sbAdmin
         .from('Client')
@@ -80,6 +84,7 @@ Deno.serve(async (req) => {
     })
   }
 
+  // ── Rotas autenticadas ────────────────────────────────────────────────────
   const auth = req.headers.get('Authorization')
   if (!auth) return new Response('Unauthorized', { status: 401, headers: cors })
 
@@ -90,6 +95,7 @@ Deno.serve(async (req) => {
   )
 
   try {
+    // GET /whatsapp?clientId=...
     if (req.method === 'GET') {
       const clientId = url.searchParams.get('clientId')
       if (!clientId) return Response.json({ error: 'clientId required' }, { status: 400, headers: cors })
@@ -103,6 +109,7 @@ Deno.serve(async (req) => {
       return Response.json(data ?? [], { headers: cors })
     }
 
+    // POST /whatsapp/send  { clientId, message }
     if (req.method === 'POST' && action === 'send') {
       const { clientId, message } = await req.json()
       if (!clientId || !message?.trim()) {

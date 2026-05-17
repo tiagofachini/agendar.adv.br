@@ -34,7 +34,7 @@ async function createCalendarEvent(accessToken: string, p: {
   if (p.location)      body.location  = p.location
   if (p.attendeeEmail) body.attendees = [{ email: p.attendeeEmail }]
 
-  await fetch(
+  const res = await fetch(
     'https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=none',
     {
       method: 'POST',
@@ -42,6 +42,10 @@ async function createCalendarEvent(accessToken: string, p: {
       body: JSON.stringify(body),
     }
   )
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}))
+    throw new Error(errBody?.error?.message || `Google Calendar HTTP ${res.status}`)
+  }
 }
 
 Deno.serve(async (req) => {
@@ -83,18 +87,22 @@ Deno.serve(async (req) => {
       const { data: lawyerId } = await sb.rpc('get_lawyer_id')
       const body = await req.json()
 
+      // Combina date (yyyy-MM-dd) + time (HH:mm) em ISO datetime (BRT)
       const { date: dateStr, time: timeStr, ...rest } = body
       const dateISO = timeStr
         ? new Date(`${dateStr}T${timeStr}:00-03:00`).toISOString()
         : new Date(`${dateStr}T00:00:00-03:00`).toISOString()
       const apptId = crypto.randomUUID()
 
+      // Sync com Google Calendar se conectado
       const { data: s } = await sbAdmin
         .from('LawyerSettings')
         .select('googleCalendarConnected, googleCalendarRefreshToken, slotDuration, street, number, city, state')
         .eq('lawyerId', lawyerId)
         .maybeSingle()
 
+      let calendarSynced = false
+      let calendarError: string | undefined
       if (s?.googleCalendarConnected && s?.googleCalendarRefreshToken) {
         try {
           const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
@@ -112,7 +120,11 @@ Deno.serve(async (req) => {
             location,
             attendeeEmail: rest.clientEmail,
           })
-        } catch (_) { /* noop — não bloquear criação por falha no Calendar */ }
+          calendarSynced = true
+        } catch (calErr) {
+          calendarError = calErr.message
+          console.error('Google Calendar sync failed:', calErr.message)
+        }
       }
 
       const { data, error } = await sb
@@ -121,7 +133,10 @@ Deno.serve(async (req) => {
         .select()
         .single()
       if (error) throw error
-      return Response.json(data, { status: 201, headers: cors })
+      return Response.json(
+        { ...data, _calendarSynced: calendarSynced, _calendarError: calendarError },
+        { status: 201, headers: cors }
+      )
     }
 
     if (req.method === 'PUT' && id) {

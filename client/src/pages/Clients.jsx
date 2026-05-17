@@ -22,6 +22,7 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
+// ── Modal novo / editar cliente ───────────────────────────────────────────────
 function ClientModal({ initial, onClose, onSaved }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
@@ -82,7 +83,8 @@ function ClientModal({ initial, onClose, onSaved }) {
   )
 }
 
-function WhatsAppSection({ clientId }) {
+// ── Seção de WhatsApp no drawer ───────────────────────────────────────────────
+function WhatsAppSection({ clientId, clientWhatsapp }) {
   const [messages, setMessages] = useState([])
   const [msgText, setMsgText] = useState('')
   const [sending, setSending] = useState(false)
@@ -124,7 +126,7 @@ function WhatsAppSection({ clientId }) {
                 : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'
             }`}>
               <p>{m.body}</p>
-              <p className="text-xs mt-1 text-gray-400">
+              <p className={`text-xs mt-1 ${m.direction === 'OUTBOUND' ? 'text-gray-400' : 'text-gray-400'}`}>
                 {format(new Date(m.createdAt), 'HH:mm', { locale: ptBR })}
               </p>
             </div>
@@ -149,6 +151,7 @@ function WhatsAppSection({ clientId }) {
   )
 }
 
+// ── Drawer de detalhe do cliente ──────────────────────────────────────────────
 function ClientDrawer({ clientId, onClose, onClientUpdated }) {
   const [client, setClient] = useState(null)
   const [editMode, setEditMode] = useState(false)
@@ -184,6 +187,7 @@ function ClientDrawer({ clientId, onClose, onClientUpdated }) {
           </div>
 
           <div className="p-6 space-y-6">
+            {/* Info */}
             <div className="bg-gray-50 rounded-xl p-4">
               <div className="w-12 h-12 rounded-full bg-navy-900 flex items-center justify-center text-white font-bold text-xl mb-3">
                 {client.name[0].toUpperCase()}
@@ -203,15 +207,17 @@ function ClientDrawer({ clientId, onClose, onClientUpdated }) {
               </p>
             </div>
 
+            {/* WhatsApp conversation */}
             {whatsappOpen && client.whatsapp && (
               <div>
                 <h4 className="font-semibold text-navy-900 mb-3 flex items-center gap-2">
                   <span>💬</span> WhatsApp
                 </h4>
-                <WhatsAppSection clientId={client.id} />
+                <WhatsAppSection clientId={client.id} clientWhatsapp={client.whatsapp} />
               </div>
             )}
 
+            {/* Resumo financeiro */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-white border border-gray-100 rounded-xl p-4">
                 <div className="text-2xl font-bold text-navy-900">{client.appointments.length}</div>
@@ -225,6 +231,7 @@ function ClientDrawer({ clientId, onClose, onClientUpdated }) {
               </div>
             </div>
 
+            {/* Histórico de atendimentos */}
             <div>
               <h4 className="font-semibold text-navy-900 mb-3">Histórico de atendimentos</h4>
               {client.appointments.length === 0 ? (
@@ -285,6 +292,7 @@ function ClientDrawer({ clientId, onClose, onClientUpdated }) {
   )
 }
 
+// ── Página principal ──────────────────────────────────────────────────────────
 export default function Clients() {
   const [clients, setClients] = useState([])
   const [total, setTotal] = useState(0)
@@ -293,7 +301,6 @@ export default function Clients() {
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
-  const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(new Set())
 
   const load = useCallback(async () => {
@@ -323,7 +330,7 @@ export default function Clients() {
     })
   }
 
-  const clearSelect = () => { setSelected(new Set()); setSelectMode(false) }
+  const clearSelect = () => setSelected(new Set())
 
   const bulkDelete = async () => {
     if (!window.confirm(`Excluir ${selected.size} cliente(s)? Esta ação não pode ser desfeita.`)) return
@@ -335,18 +342,13 @@ export default function Clients() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-navy-900">Clientes</h1>
           <p className="text-sm text-gray-500">{total} cliente{total !== 1 ? 's' : ''} cadastrado{total !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setSelectMode(s => !s); setSelected(new Set()) }}
-            className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors
-              ${selectMode ? 'bg-navy-900 text-white border-navy-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-            Selecionar
-          </button>
           <button
             onClick={() => setShowNew(true)}
             className="px-5 py-2.5 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors">
@@ -355,6 +357,7 @@ export default function Clients() {
         </div>
       </div>
 
+      {/* Busca */}
       <div className="relative mb-6">
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
         <input
@@ -365,6 +368,7 @@ export default function Clients() {
         />
       </div>
 
+      {/* Lista */}
       {loading ? (
         <div className="space-y-3">
           {Array(5).fill(0).map((_, i) => <div key={i} className="bg-white rounded-xl h-16 animate-pulse" />)}
@@ -389,13 +393,11 @@ export default function Clients() {
               <div className="space-y-2">
                 {group.map((client) => (
                   <div key={client.id} className="flex items-center gap-3">
-                    {selectMode && (
-                      <input type="checkbox" checked={selected.has(client.id)}
-                        onChange={() => toggleSelect(client.id)}
-                        className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
-                    )}
+                    <input type="checkbox" checked={selected.has(client.id)}
+                      onChange={() => toggleSelect(client.id)}
+                      className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
                     <button
-                      onClick={() => selectMode ? toggleSelect(client.id) : setSelectedId(client.id)}
+                      onClick={() => setSelectedId(client.id)}
                       className={`flex-1 bg-white rounded-xl px-4 py-4 flex items-center gap-4 shadow-sm border transition-all text-left
                         ${selected.has(client.id) ? 'border-navy-400 bg-navy-50' : 'border-gray-100 hover:border-navy-200 hover:shadow-md'}`}>
                       <div className="w-10 h-10 rounded-full bg-navy-900 flex items-center justify-center text-white font-bold flex-shrink-0">
@@ -418,19 +420,21 @@ export default function Clients() {
         </div>
       )}
 
+      {/* Barra de ações em lote */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
           <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
           <button onClick={() => setSelected(new Set(clients.map(c => c.id)))}
-            className="text-xs text-gray-300 hover:text-white underline">Todos</button>
+            className="text-xs text-gray-300 hover:text-white underline">Selecionar todos</button>
           <button onClick={bulkDelete}
             className="text-sm bg-red-500 hover:bg-red-400 px-3 py-1 rounded-lg transition-colors">
-            Excluir
+            Excluir selecionados
           </button>
           <button onClick={clearSelect} className="text-gray-300 hover:text-white text-lg">×</button>
         </div>
       )}
 
+      {/* Modais */}
       {showNew && (
         <ClientModal
           onClose={() => setShowNew(false)}

@@ -56,7 +56,6 @@ export default function Finance() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
-  const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [bulkAction, setBulkAction] = useState('')
 
@@ -83,7 +82,7 @@ export default function Finance() {
     })
   }
 
-  const clearSelect = () => { setSelected(new Set()); setSelectMode(false); setBulkAction('') }
+  const clearSelect = () => { setSelected(new Set()); setBulkAction('') }
 
   const selectAll = () => setSelected(new Set((data?.payments ?? []).map(p => p.id)))
 
@@ -114,17 +113,9 @@ export default function Finance() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-navy-900">Financeiro</h1>
-          <p className="text-sm text-gray-500">Controle de recebíveis e pagamentos</p>
-        </div>
-        <button
-          onClick={() => { setSelectMode(s => !s); setSelected(new Set()) }}
-          className={`px-3 py-2 rounded-xl text-sm font-medium border transition-colors
-            ${selectMode ? 'bg-navy-900 text-white border-navy-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-          Selecionar
-        </button>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-navy-900">Financeiro</h1>
+        <p className="text-sm text-gray-500">Controle de recebíveis e pagamentos</p>
       </div>
 
       {/* Saldo Stripe */}
@@ -215,15 +206,12 @@ export default function Finance() {
               const isChecked = selected.has(p.id)
               return (
                 <div key={p.id}
-                  onClick={() => selectMode && toggleSelect(p.id)}
-                  className={`flex items-center gap-3 px-6 py-4 transition-colors
-                    ${selectMode ? 'cursor-pointer hover:bg-gray-50' : 'hover:bg-gray-50'}
+                  onClick={() => toggleSelect(p.id)}
+                  className={`flex items-center gap-3 px-6 py-4 transition-colors cursor-pointer hover:bg-gray-50
                     ${isChecked ? 'bg-navy-50' : ''}`}>
-                  {selectMode && (
-                    <input type="checkbox" checked={isChecked} onChange={() => toggleSelect(p.id)}
-                      onClick={e => e.stopPropagation()}
-                      className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
-                  )}
+                  <input type="checkbox" checked={isChecked} onChange={() => toggleSelect(p.id)}
+                    onClick={e => e.stopPropagation()}
+                    className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-navy-900 truncate">{p.client?.name || 'Cliente não vinculado'}</p>
                     <p className="text-xs text-gray-400">
