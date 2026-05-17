@@ -1,17 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   format, addWeeks, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval,
-  isSameDay, isToday, addMonths, subMonths, startOfMonth, endOfMonth,
-  getDay, eachDayOfInterval as eachDay,
+  isSameDay, isToday, addMonths,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
-const HOURS = Array.from({ length: 14 }, (_, i) => i + 7) // 07 – 20
+const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 
-// Agendamentos manuais (advogado) → azul/verde/amarelo
-// Agendamentos do scheduler (cliente final) → violeta/laranja/verde-azulado
 const SOURCE_STYLES = {
   MANUAL: {
     PENDING_PAYMENT: { label: 'Ag. Pagamento', bg: 'bg-yellow-400', text: 'text-yellow-900', badge: 'bg-yellow-100 text-yellow-700' },
@@ -29,7 +26,7 @@ const SOURCE_STYLES = {
 
 function getStyle(appt) {
   const src = appt?.source === 'SCHEDULER' ? 'SCHEDULER' : 'MANUAL'
-  return (SOURCE_STYLES[src][appt?.status] || SOURCE_STYLES[src].CONFIRMED)
+  return SOURCE_STYLES[src][appt?.status] || SOURCE_STYLES[src].CONFIRMED
 }
 
 const inputCls = 'w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700'
@@ -43,7 +40,51 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-// ── Modal novo/detalhe de compromisso ─────────────────────────────────────────
+function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...' }) {
+  const ref = useRef(null)
+  const initialized = useRef(false)
+
+  useEffect(() => {
+    if (ref.current && !initialized.current) {
+      ref.current.innerHTML = value || ''
+      initialized.current = true
+    }
+  }, [value])
+
+  const exec = (cmd) => {
+    ref.current.focus()
+    document.execCommand(cmd, false)
+    onChange(ref.current.innerHTML)
+  }
+
+  return (
+    <div className="border border-gray-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-navy-700">
+      <div className="flex gap-1 p-1.5 border-b border-gray-200 bg-gray-50">
+        {[
+          { cmd: 'bold',                label: 'N', title: 'Negrito',  cls: 'font-bold' },
+          { cmd: 'italic',              label: 'I', title: 'Itálico',  cls: 'italic' },
+          { cmd: 'insertUnorderedList', label: '≡', title: 'Lista',    cls: '' },
+        ].map(({ cmd, label, title, cls }) => (
+          <button key={cmd} type="button" title={title}
+            onMouseDown={(e) => { e.preventDefault(); exec(cmd) }}
+            className={`w-7 h-7 flex items-center justify-center rounded text-sm hover:bg-gray-200 text-gray-700 ${cls}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={() => onChange(ref.current.innerHTML)}
+        onBlur={() => onChange(ref.current.innerHTML)}
+        data-placeholder={placeholder}
+        className="min-h-[120px] px-4 py-3 text-sm focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+      />
+    </div>
+  )
+}
+
 function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
@@ -52,9 +93,11 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
     clientWhatsapp: initial?.clientWhatsapp || '',
     specialty: initial?.specialty || '',
     description: initial?.description || '',
+    attendanceNotes: initial?.attendanceNotes || '',
     date: initial?.date ? format(new Date(initial.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
     time: initial?.date ? format(new Date(initial.date), 'HH:mm') : '09:00',
     duration: initial?.duration || 60,
+    status: initial?.status || 'PENDING_PAYMENT',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -66,8 +109,12 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
         const { data } = await api.post('/appointments', form)
         onSaved(data)
       } else {
-        await api.put(`/appointments/${initial.id}`, { status: form.status, description: form.description })
-        onSaved({ ...initial, ...form })
+        const { data } = await api.put(`/appointments/${initial.id}`, {
+          status: form.status,
+          description: form.description,
+          attendanceNotes: form.attendanceNotes,
+        })
+        onSaved({ ...initial, status: form.status, description: form.description, attendanceNotes: form.attendanceNotes })
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao salvar')
@@ -84,7 +131,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b sticky top-0 bg-white">
           <h2 className="font-bold text-navy-900 text-lg">{isNew ? 'Novo compromisso' : 'Compromisso'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
@@ -111,7 +158,8 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
                 {LEGAL_SPECIALTIES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
-          </>}
+          </>
+          }
           {!isNew && (
             <div className="bg-gray-50 rounded-xl p-4 space-y-1">
               <p className="font-semibold text-navy-900">{initial.clientName}</p>
@@ -140,19 +188,29 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-            <textarea rows={3} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')} />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Observações do cliente</label>
+            <textarea rows={3} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
+              placeholder="Descrição relatada pelo cliente" />
           </div>
           {!isNew && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select className={inputCls} value={form.status || initial.status} onChange={upd('status')}>
-                <option value="PENDING_PAYMENT">Aguardando pagamento</option>
-                <option value="CONFIRMED">Confirmado</option>
-                <option value="COMPLETED">Realizado</option>
-                <option value="CANCELLED">Cancelado</option>
-              </select>
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select className={inputCls} value={form.status} onChange={upd('status')}>
+                  <option value="PENDING_PAYMENT">Aguardando pagamento</option>
+                  <option value="CONFIRMED">Confirmado</option>
+                  <option value="COMPLETED">Realizado</option>
+                  <option value="CANCELLED">Cancelado</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes do atendimento</label>
+                <RichTextEditor
+                  value={form.attendanceNotes}
+                  onChange={(html) => setForm(f => ({ ...f, attendanceNotes: html }))}
+                />
+              </div>
+            </>
           )}
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
@@ -173,22 +231,17 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   )
 }
 
-// ── View Semanal ──────────────────────────────────────────────────────────────
 function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) {
   const days = eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) })
-
   const byDay = days.map(d => appointments.filter(a => isSameDay(new Date(a.date), d)))
 
   return (
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-      {/* Cabeçalho dos dias */}
       <div className="grid border-b border-gray-100" style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}>
         <div />
         {days.map((d, i) => (
           <div key={i} className={`py-3 text-center border-l border-gray-100 ${isToday(d) ? 'bg-navy-50' : ''}`}>
-            <div className="text-xs text-gray-400 font-medium uppercase">
-              {format(d, 'EEE', { locale: ptBR })}
-            </div>
+            <div className="text-xs text-gray-400 font-medium uppercase">{format(d, 'EEE', { locale: ptBR })}</div>
             <div className={`text-lg font-bold mt-0.5 mx-auto w-9 h-9 flex items-center justify-center rounded-full
               ${isToday(d) ? 'bg-navy-900 text-white' : 'text-navy-900'}`}>
               {format(d, 'd')}
@@ -196,8 +249,6 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
           </div>
         ))}
       </div>
-
-      {/* Grade de horas */}
       <div className="overflow-y-auto" style={{ maxHeight: '600px' }}>
         {HOURS.map(hour => (
           <div key={hour} className="grid border-b border-gray-50" style={{ gridTemplateColumns: '60px repeat(7, 1fr)', minHeight: '64px' }}>
@@ -207,14 +258,15 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
               return (
                 <div key={di}
                   className={`border-l border-gray-100 p-1 relative cursor-pointer hover:bg-gray-50 transition-colors ${isToday(d) ? 'bg-navy-50/50' : ''}`}
-                  onClick={() => onSlotClick(d, hour)}
-                >
+                  onClick={() => onSlotClick(d, hour)}>
                   {appts.map(a => {
                     const s = getStyle(a)
                     return (
                       <div key={a.id} onClick={(e) => { e.stopPropagation(); onAppointmentClick(a) }}
-                        className={`${s.bg} ${s.text} text-xs rounded-lg px-1.5 py-1 mb-1 cursor-pointer hover:opacity-80 transition-opacity truncate`}>
+                        className={`${s.bg} ${s.text} text-xs rounded-lg px-1.5 py-1 mb-1 cursor-pointer hover:opacity-80 transition-opacity truncate`}
+                        title={a.attendanceNotes ? '📝 Com anotações' : ''}>
                         <span className="font-semibold">{format(new Date(a.date), 'HH:mm')}</span> {a.clientName}
+                        {a.attendanceNotes && <span className="ml-1 opacity-70">·</span>}
                       </div>
                     )
                   })}
@@ -228,8 +280,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
   )
 }
 
-// ── View Lista ────────────────────────────────────────────────────────────────
-function ListView({ appointments, onAppointmentClick }) {
+function ListView({ appointments, onAppointmentClick, selected, onToggle, selectMode }) {
   if (!appointments.length) return (
     <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
       <div className="text-5xl mb-3">📅</div>
@@ -241,10 +292,16 @@ function ListView({ appointments, onAppointmentClick }) {
     <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       {appointments.map((a) => {
         const s = getStyle(a)
+        const isChecked = selected.has(a.id)
         return (
           <div key={a.id}
-            onClick={() => onAppointmentClick(a)}
-            className="flex items-center gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer last:border-0">
+            className="flex items-center gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer last:border-0"
+            onClick={() => selectMode ? onToggle(a.id) : onAppointmentClick(a)}>
+            {selectMode && (
+              <input type="checkbox" checked={isChecked} onChange={() => onToggle(a.id)}
+                onClick={e => e.stopPropagation()}
+                className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
+            )}
             <div className="text-center flex-shrink-0 w-12">
               <div className="text-xs text-gray-400 font-medium">{format(new Date(a.date), 'EEE', { locale: ptBR })}</div>
               <div className="text-xl font-bold text-navy-900">{format(new Date(a.date), 'd')}</div>
@@ -253,11 +310,11 @@ function ListView({ appointments, onAppointmentClick }) {
             <div className={`w-1 h-12 rounded-full flex-shrink-0 ${s.bg}`} />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-navy-900">{a.clientName}</p>
-              <p className="text-sm text-gray-500">{a.specialty} · {format(new Date(a.date), 'HH:mm')} ({a.duration}min)</p>
+              <p className="text-sm text-gray-500">{a.specialty} · {format(new Date(a.date), 'HH:mm')} ({a.duration}min)
+                {a.attendanceNotes && <span className="ml-2 text-xs text-gray-400">· 📝</span>}
+              </p>
             </div>
-            <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${s.badge}`}>
-              {s.label}
-            </span>
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${s.badge}`}>{s.label}</span>
           </div>
         )
       })}
@@ -265,19 +322,21 @@ function ListView({ appointments, onAppointmentClick }) {
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
 export default function Appointments() {
-  const [view, setView] = useState('week') // week | list
+  const [view, setView] = useState('week')
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null) // null | { mode: 'new', date, time } | { mode: 'edit', appointment }
+  const [modal, setModal] = useState(null)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState(new Set())
+  const [bulkStatus, setBulkStatus] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
-      // List view loads wider range (next 30 days)
       const start = format(view === 'list' ? new Date() : weekStart, 'yyyy-MM-dd')
       const end = format(view === 'list' ? addMonths(new Date(), 1) : weekEnd, 'yyyy-MM-dd')
       const { data } = await api.get(`/appointments?start=${start}&end=${end}`)
@@ -287,6 +346,38 @@ export default function Appointments() {
   }, [weekStart, view])
 
   useEffect(() => { load() }, [load])
+
+  const filtered = statusFilter
+    ? appointments.filter(a => a.status === statusFilter)
+    : appointments
+
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const selectAll = () => setSelected(new Set(filtered.map(a => a.id)))
+  const clearSelect = () => { setSelected(new Set()); setSelectMode(false) }
+
+  const bulkDelete = async () => {
+    if (!window.confirm(`Excluir ${selected.size} compromisso(s)?`)) return
+    await api.delete('/appointments/bulk', { data: { ids: [...selected] } })
+    setAppointments(prev => prev.filter(a => !selected.has(a.id)))
+    clearSelect()
+  }
+
+  const bulkChangeStatus = async () => {
+    if (!bulkStatus) return
+    await Promise.all([...selected].map(id =>
+      api.put(`/appointments/${id}`, { status: bulkStatus })
+    ))
+    setAppointments(prev => prev.map(a => selected.has(a.id) ? { ...a, status: bulkStatus } : a))
+    clearSelect()
+    setBulkStatus('')
+  }
 
   const openNew = (date, hour) => {
     const time = `${String(hour).padStart(2, '0')}:00`
@@ -308,7 +399,6 @@ export default function Appointments() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-navy-900">Compromissos</h1>
@@ -318,27 +408,39 @@ export default function Appointments() {
               : 'Próximos 30 dias'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {/* View switcher */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-navy-700">
+            <option value="">Todos os status</option>
+            <option value="PENDING_PAYMENT">Ag. Pagamento</option>
+            <option value="CONFIRMED">Confirmado</option>
+            <option value="COMPLETED">Realizado</option>
+            <option value="CANCELLED">Cancelado</option>
+          </select>
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
             {[{ v: 'week', l: 'Semana' }, { v: 'list', l: 'Lista' }].map(({ v, l }) => (
-              <button key={v} onClick={() => setView(v)}
+              <button key={v} onClick={() => { setView(v); clearSelect() }}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
                   ${view === v ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500'}`}>
                 {l}
               </button>
             ))}
           </div>
+          {view === 'list' && (
+            <button onClick={() => { setSelectMode(s => !s); setSelected(new Set()) }}
+              className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-colors
+                ${selectMode ? 'bg-navy-900 text-white border-navy-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              Selecionar
+            </button>
+          )}
           <button
             onClick={() => setModal({ mode: 'new', date: format(new Date(), 'yyyy-MM-dd'), time: '09:00' })}
-            className="px-4 py-2.5 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors"
-          >
+            className="px-4 py-2.5 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors">
             + Novo
           </button>
         </div>
       </div>
 
-      {/* Navegação semana */}
       {view === 'week' && (
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => setWeekStart(subWeeks(weekStart, 1))}
@@ -355,18 +457,20 @@ export default function Appointments() {
       ) : view === 'week' ? (
         <WeekView
           weekStart={weekStart}
-          appointments={appointments}
+          appointments={filtered}
           onSlotClick={openNew}
           onAppointmentClick={(a) => setModal({ mode: 'edit', appointment: a })}
         />
       ) : (
         <ListView
-          appointments={appointments}
+          appointments={filtered}
           onAppointmentClick={(a) => setModal({ mode: 'edit', appointment: a })}
+          selected={selected}
+          onToggle={toggleSelect}
+          selectMode={selectMode}
         />
       )}
 
-      {/* Legenda */}
       <div className="mt-4 space-y-2">
         {[
           { label: 'Agendado manualmente', src: 'MANUAL' },
@@ -384,7 +488,33 @@ export default function Appointments() {
         ))}
       </div>
 
-      {/* Modal */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
+          <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
+          <button onClick={selectAll} className="text-xs text-gray-300 hover:text-white underline">Todos</button>
+          <div className="flex items-center gap-2">
+            <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
+              className="text-sm bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white focus:outline-none">
+              <option value="">Alterar status...</option>
+              <option value="CONFIRMED">Confirmado</option>
+              <option value="COMPLETED">Realizado</option>
+              <option value="CANCELLED">Cancelado</option>
+            </select>
+            {bulkStatus && (
+              <button onClick={bulkChangeStatus}
+                className="text-sm bg-blue-500 hover:bg-blue-400 px-3 py-1 rounded-lg transition-colors">
+                Aplicar
+              </button>
+            )}
+          </div>
+          <button onClick={bulkDelete}
+            className="text-sm bg-red-500 hover:bg-red-400 px-3 py-1 rounded-lg transition-colors">
+            Excluir
+          </button>
+          <button onClick={clearSelect} className="text-gray-300 hover:text-white text-lg">×</button>
+        </div>
+      )}
+
       {modal && (
         <AppointmentModal
           initial={modal.mode === 'edit' ? modal.appointment : { date: modal.date + 'T' + modal.time + ':00', duration: 60 }}

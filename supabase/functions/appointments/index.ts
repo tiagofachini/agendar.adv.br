@@ -83,14 +83,12 @@ Deno.serve(async (req) => {
       const { data: lawyerId } = await sb.rpc('get_lawyer_id')
       const body = await req.json()
 
-      // Combina date (yyyy-MM-dd) + time (HH:mm) em ISO datetime (BRT)
       const { date: dateStr, time: timeStr, ...rest } = body
       const dateISO = timeStr
         ? new Date(`${dateStr}T${timeStr}:00-03:00`).toISOString()
         : new Date(`${dateStr}T00:00:00-03:00`).toISOString()
       const apptId = crypto.randomUUID()
 
-      // Sync com Google Calendar se conectado
       const { data: s } = await sbAdmin
         .from('LawyerSettings')
         .select('googleCalendarConnected, googleCalendarRefreshToken, slotDuration, street, number, city, state')
@@ -136,6 +134,16 @@ Deno.serve(async (req) => {
         .single()
       if (error) throw error
       return Response.json(data, { headers: cors })
+    }
+
+    if (req.method === 'DELETE' && id === 'bulk') {
+      const { ids } = await req.json()
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return Response.json({ error: 'ids required' }, { status: 400, headers: cors })
+      }
+      const { error } = await sb.from('Appointment').delete().in('id', ids)
+      if (error) throw error
+      return new Response(null, { status: 204, headers: cors })
     }
 
     if (req.method === 'DELETE' && id) {

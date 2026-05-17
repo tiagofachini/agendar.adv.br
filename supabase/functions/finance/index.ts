@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
 }
 
 Deno.serve(async (req) => {
@@ -20,10 +20,11 @@ Deno.serve(async (req) => {
 
   const url = new URL(req.url)
   const parts = url.pathname.split('/').filter(Boolean)
-  const action = parts.at(-1)
+  const last = parts.at(-1)
+  const id = last !== 'finance' ? last : null
 
   try {
-    if (req.method === 'GET' && action === 'balance') {
+    if (req.method === 'GET' && id === 'balance') {
       const { data: lawyer } = await sb
         .from('Lawyer')
         .select('stripeAccountId,stripeChargesEnabled')
@@ -45,7 +46,45 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (req.method === 'GET' && action !== 'balance') {
+    if (req.method === 'PUT' && id && id !== 'bulk') {
+      const body = await req.json()
+      const { data, error } = await sb
+        .from('Payment')
+        .update(body)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return Response.json(data, { headers: cors })
+    }
+
+    if (req.method === 'PUT' && id === 'bulk') {
+      const { ids, status } = await req.json()
+      if (!Array.isArray(ids) || ids.length === 0 || !status) {
+        return Response.json({ error: 'ids e status obrigatórios' }, { status: 400, headers: cors })
+      }
+      const { error } = await sb.from('Payment').update({ status }).in('id', ids)
+      if (error) throw error
+      return new Response(null, { status: 204, headers: cors })
+    }
+
+    if (req.method === 'DELETE' && id === 'bulk') {
+      const { ids } = await req.json()
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return Response.json({ error: 'ids required' }, { status: 400, headers: cors })
+      }
+      const { error } = await sb.from('Payment').delete().in('id', ids)
+      if (error) throw error
+      return new Response(null, { status: 204, headers: cors })
+    }
+
+    if (req.method === 'DELETE' && id) {
+      const { error } = await sb.from('Payment').delete().eq('id', id)
+      if (error) throw error
+      return new Response(null, { status: 204, headers: cors })
+    }
+
+    if (req.method === 'GET') {
       const page = parseInt(url.searchParams.get('page') ?? '1')
       const pageSize = 20
       const status = url.searchParams.get('status') || ''
