@@ -20,22 +20,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let cancelled = false
 
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        if (cancelled) return
-        setSession(session ?? null)
-        if (session) {
-          loadLawyerData(session.user.id)
-            .then(data => { if (!cancelled) setLawyer(data) })
-            .catch(() => { if (!cancelled) setLawyer(null) })
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSession(null)
-      })
-
+    // onAuthStateChange cobre TODOS os eventos: INITIAL_SESSION (inclui retorno
+    // de OAuth e magic link), SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.
+    // Não chamamos getSession() separadamente para evitar corrida com a troca PKCE.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION') return
       if (cancelled) return
       setSession(session ?? null)
       if (session) {
@@ -69,3 +57,4 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext)
+

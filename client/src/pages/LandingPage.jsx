@@ -61,10 +61,12 @@ export default function LandingPage() {
   }
 
   const handleGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
+    setError('')
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: 'https://agendar.adv.br' },
     })
+    if (error) setError(error.message)
   }
 
   const openModal = (type) => {
