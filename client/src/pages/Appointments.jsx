@@ -379,7 +379,10 @@ export default function Appointments() {
       setAppointments(prev => prev.filter(a => !selected.has(a.id)))
       clearSelect()
     } catch (err) {
-      setBulkError(err.response?.data?.error || 'Erro ao excluir compromissos')
+      const msg = err.response?.data?.error
+        || (typeof err.response?.data === 'string' ? err.response.data.substring(0, 120) : null)
+        || err.message || 'Erro ao excluir compromissos'
+      setBulkError(msg)
     }
   }
 

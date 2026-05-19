@@ -342,7 +342,10 @@ export default function Clients() {
       setTotal(t => t - selected.size)
       clearSelect()
     } catch (err) {
-      setBulkError(err.response?.data?.error || 'Erro ao excluir clientes')
+      const msg = err.response?.data?.error
+        || (typeof err.response?.data === 'string' ? err.response.data.substring(0, 120) : null)
+        || err.message || 'Erro ao excluir clientes'
+      setBulkError(msg)
     }
   }
 
