@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
 async function getGoogleAccessToken(refreshToken: string): Promise<string> {
@@ -87,14 +88,12 @@ Deno.serve(async (req) => {
       const { data: lawyerId } = await sb.rpc('get_lawyer_id')
       const body = await req.json()
 
-      // Combina date (yyyy-MM-dd) + time (HH:mm) em ISO datetime (BRT)
       const { date: dateStr, time: timeStr, ...rest } = body
       const dateISO = timeStr
         ? new Date(`${dateStr}T${timeStr}:00-03:00`).toISOString()
         : new Date(`${dateStr}T00:00:00-03:00`).toISOString()
       const apptId = crypto.randomUUID()
 
-      // Sync com Google Calendar se conectado
       const { data: s } = await sbAdmin
         .from('LawyerSettings')
         .select('googleCalendarConnected, googleCalendarRefreshToken, slotDuration, street, number, city, state')
