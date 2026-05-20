@@ -21,12 +21,15 @@ function MetricBlock({ value, label, sub, accent }) {
 }
 
 function Countdown({ appointment }) {
+  const navigate = useNavigate()
   const [remaining, setRemaining] = useState('')
+  const [secsLeft, setSecsLeft] = useState(Infinity)
 
   useEffect(() => {
     if (!appointment) return
     const update = () => {
       const secs = differenceInSeconds(new Date(appointment.date), new Date())
+      setSecsLeft(secs)
       if (secs <= 0) { setRemaining('Agora!'); return }
       const h = Math.floor(secs / 3600)
       const m = Math.floor((secs % 3600) / 60)
@@ -50,14 +53,110 @@ function Countdown({ appointment }) {
     </div>
   )
 
+  const meetingReady = secsLeft <= 300
+  const hasDetails = appointment.clientEmail || appointment.clientWhatsapp || appointment.description
+  const waPhone = appointment.clientWhatsapp ? appointment.clientWhatsapp.replace(/\D/g, '') : null
+
+  const statusLabel = {
+    CONFIRMED: 'Confirmado',
+    PENDING_PAYMENT: 'Aguard. pagamento',
+    CANCELLED: 'Cancelado',
+    COMPLETED: 'Concluído',
+  }[appointment.status] ?? appointment.status
+
+  const statusColor = {
+    CONFIRMED: 'bg-green-500/20 text-green-400',
+    PENDING_PAYMENT: 'bg-yellow-500/20 text-yellow-400',
+    CANCELLED: 'bg-red-500/20 text-red-400',
+    COMPLETED: 'bg-gray-500/20 text-gray-400',
+  }[appointment.status] ?? 'bg-white/10 text-gray-400'
+
   return (
-    <div className="bg-navy-900 rounded-2xl p-6 shadow-sm text-white">
-      <div className="text-xs text-brand-400 font-semibold uppercase tracking-wide mb-2">Próximo compromisso</div>
-      <div className="text-5xl font-extrabold text-brand-400 mb-3 tabular-nums">{remaining}</div>
-      <div className="font-semibold text-lg">{appointment.clientName}</div>
-      <div className="text-gray-300 text-sm">{appointment.specialty}</div>
-      <div className="text-gray-400 text-xs mt-1">
-        {format(new Date(appointment.date), "dd/MM 'às' HH:mm", { locale: ptBR })}
+    <div className="bg-navy-900 rounded-2xl shadow-sm text-white overflow-hidden">
+      <div className="p-6">
+        <div className="text-xs text-brand-400 font-semibold uppercase tracking-wide mb-4">Próximo compromisso</div>
+
+        {/* Name + countdown */}
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-xl text-white leading-tight truncate">{appointment.clientName}</div>
+            <div className="text-brand-400 text-sm font-medium mt-0.5">{appointment.specialty}</div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className={`text-3xl font-extrabold tabular-nums leading-none ${meetingReady ? 'text-green-400' : 'text-brand-400'}`}>
+              {remaining}
+            </div>
+            <div className="text-gray-500 text-xs mt-1">para iniciar</div>
+          </div>
+        </div>
+
+        {/* Date + meta */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-400 mb-4">
+          <span>📅 {format(new Date(appointment.date), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}</span>
+          {appointment.duration && (
+            <span className="bg-white/10 px-2 py-0.5 rounded-full">{appointment.duration} min</span>
+          )}
+          {appointment.status && (
+            <span className={`px-2 py-0.5 rounded-full font-medium ${statusColor}`}>{statusLabel}</span>
+          )}
+        </div>
+
+        {/* Client details */}
+        {hasDetails && (
+          <div className="bg-white/5 rounded-xl p-3 space-y-2 mb-4">
+            {appointment.clientEmail && (
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <span>✉</span>
+                <span className="truncate">{appointment.clientEmail}</span>
+              </div>
+            )}
+            {appointment.clientWhatsapp && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-gray-400">📱</span>
+                <a
+                  href={`https://wa.me/${waPhone}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-400 hover:underline">
+                  {appointment.clientWhatsapp}
+                </a>
+              </div>
+            )}
+            {appointment.description && (
+              <div className="flex items-start gap-2 text-xs text-gray-400">
+                <span className="mt-0.5 flex-shrink-0">📝</span>
+                <span className="overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                  {appointment.description}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate('/agenda')}
+            className="flex-1 py-2.5 rounded-xl border border-white/20 text-white/80 text-sm font-medium hover:bg-white/10 transition-colors">
+            Ver detalhes
+          </button>
+
+          {appointment.meetingLink && (
+            meetingReady ? (
+              <a
+                href={appointment.meetingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-2.5 rounded-xl bg-green-500 text-white text-sm font-bold text-center hover:bg-green-400 transition-colors animate-pulse">
+                🔗 Abrir reunião →
+              </a>
+            ) : (
+              <div className="flex-1 py-2.5 rounded-xl bg-white/8 text-white/35 text-sm font-medium text-center cursor-not-allowed select-none border border-white/10">
+                🔒 Disponível em {remaining}
+              </div>
+            )
+          )}
+        </div>
       </div>
     </div>
   )
