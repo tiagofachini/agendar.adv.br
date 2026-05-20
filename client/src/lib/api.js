@@ -17,5 +17,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const publicApi = axios.create({
   baseURL: 'https://nfgexlsfmyfypueslzxo.supabase.co/functions/v1',
-  headers: { apikey: SUPABASE_ANON_KEY },
+  headers: {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+  },
 })
