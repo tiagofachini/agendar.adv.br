@@ -128,7 +128,7 @@ async function getGoogleAccessToken(refreshToken: string): Promise<string> {
 async function createCalendarEvent(accessToken: string, p: {
   summary: string; description: string; startISO: string; endISO: string
   location?: string; attendeeEmail?: string; withMeet: boolean
-}): Promise<string | null> {
+}): Promise<{ eventId: string; meetingLink: string | null }> {
   const body: Record<string, unknown> = {
     summary: p.summary,
     description: p.description,
@@ -159,10 +159,9 @@ async function createCalendarEvent(accessToken: string, p: {
     throw new Error(errBody?.error?.message || `Google Calendar HTTP ${res.status}`)
   }
   const event = await res.json()
-  if (!p.withMeet) return null
   const entry = (event?.conferenceData?.entryPoints ?? [])
     .find((e: { entryPointType: string; uri: string }) => e.entryPointType === 'video')
-  return entry?.uri ?? null
+  return { eventId: event.id as string, meetingLink: entry?.uri ?? null }
 }
 
 Deno.serve(async (req) => {
@@ -335,6 +334,7 @@ Deno.serve(async (req) => {
       const hasAddress = !!(s.street && s.city)
 
       let meetingLink: string | null = null
+      let googleCalendarEventId: string | undefined
       if (s.googleCalendarConnected && s.googleCalendarRefreshToken) {
         try {
           const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
           const location = hasAddress
             ? [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
             : undefined
-          meetingLink = await createCalendarEvent(accessToken, {
+          const calResult = await createCalendarEvent(accessToken, {
             summary: `Consulta jurídica: ${specialty} — ${clientName}`,
             description: description ? `Descrição: ${description}` : `Consulta com ${clientName}`,
             startISO: apptDate,
@@ -351,6 +351,8 @@ Deno.serve(async (req) => {
             attendeeEmail: clientEmail,
             withMeet: true,
           })
+          meetingLink = calResult.meetingLink
+          googleCalendarEventId = calResult.eventId
         } catch (_) { /* fallback below */ }
       }
       if (!meetingLink && !hasAddress) {
@@ -373,6 +375,7 @@ Deno.serve(async (req) => {
           status: 'CONFIRMED',
           source: 'SCHEDULER',
           meetingLink,
+          googleCalendarEventId,
           updatedAt: new Date().toISOString(),
         })
       if (apptErr) throw apptErr

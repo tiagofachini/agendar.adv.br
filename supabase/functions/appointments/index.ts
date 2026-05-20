@@ -88,7 +88,7 @@ async function getGoogleAccessToken(refreshToken: string): Promise<string> {
 async function createCalendarEvent(accessToken: string, p: {
   summary: string; description: string; startISO: string; endISO: string
   location?: string; attendeeEmail?: string
-}): Promise<void> {
+}): Promise<string> {
   const body: Record<string, unknown> = {
     summary: p.summary,
     description: p.description,
@@ -110,6 +110,15 @@ async function createCalendarEvent(accessToken: string, p: {
     const errBody = await res.json().catch(() => ({}))
     throw new Error(errBody?.error?.message || `Google Calendar HTTP ${res.status}`)
   }
+  const event = await res.json()
+  return event.id as string
+}
+
+async function deleteCalendarEvent(accessToken: string, eventId: string): Promise<void> {
+  await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }
+  )
 }
 
 Deno.serve(async (req) => {
@@ -165,6 +174,7 @@ Deno.serve(async (req) => {
 
       let calendarSynced = false
       let calendarError: string | undefined
+      let calendarEventId: string | undefined
       if (s?.googleCalendarConnected && s?.googleCalendarRefreshToken) {
         try {
           const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
@@ -174,7 +184,7 @@ Deno.serve(async (req) => {
           const location = hasAddress
             ? [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
             : undefined
-          await createCalendarEvent(accessToken, {
+          calendarEventId = await createCalendarEvent(accessToken, {
             summary: `Consulta jurídica: ${rest.specialty} — ${rest.clientName}`,
             description: rest.description || `Consulta com ${rest.clientName}`,
             startISO: dateISO,
@@ -191,7 +201,7 @@ Deno.serve(async (req) => {
 
       const { data, error } = await sb
         .from('Appointment')
-        .insert({ ...rest, id: apptId, lawyerId, source: 'MANUAL', date: dateISO, updatedAt: new Date().toISOString() })
+        .insert({ ...rest, id: apptId, lawyerId, source: 'MANUAL', date: dateISO, updatedAt: new Date().toISOString(), googleCalendarEventId: calendarEventId })
         .select()
         .single()
       if (error) throw error
@@ -220,8 +230,31 @@ Deno.serve(async (req) => {
       }
       const { data: lawyerId } = await sb.rpc('get_lawyer_id')
       if (!lawyerId) return Response.json({ error: 'Perfil não encontrado' }, { status: 404, headers: cors })
+
+      const { data: appts } = await sbAdmin
+        .from('Appointment')
+        .select('googleCalendarEventId')
+        .in('id', ids)
+        .eq('lawyerId', lawyerId)
+
       const { error } = await sbAdmin.from('Appointment').delete().in('id', ids).eq('lawyerId', lawyerId)
       if (error) throw error
+
+      const eventIds = (appts ?? []).map(a => a.googleCalendarEventId).filter(Boolean) as string[]
+      if (eventIds.length > 0) {
+        const { data: calSettings } = await sbAdmin
+          .from('LawyerSettings')
+          .select('googleCalendarConnected, googleCalendarRefreshToken')
+          .eq('lawyerId', lawyerId)
+          .maybeSingle()
+        if (calSettings?.googleCalendarConnected && calSettings?.googleCalendarRefreshToken) {
+          try {
+            const accessToken = await getGoogleAccessToken(calSettings.googleCalendarRefreshToken)
+            await Promise.allSettled(eventIds.map(eid => deleteCalendarEvent(accessToken, eid)))
+          } catch (_) {}
+        }
+      }
+
       return new Response(null, { status: 204, headers: cors })
     }
 
@@ -231,7 +264,7 @@ Deno.serve(async (req) => {
 
       const { data: appt } = await sbAdmin
         .from('Appointment')
-        .select('clientName, date, specialty')
+        .select('clientName, date, specialty, googleCalendarEventId')
         .eq('id', id)
         .eq('lawyerId', lawyerId)
         .maybeSingle()
@@ -241,11 +274,19 @@ Deno.serve(async (req) => {
 
       if (appt) {
         const [sRes, lawyerRes] = await Promise.all([
-          sbAdmin.from('LawyerSettings').select('cancellationByEmail, cancellationByWhatsapp').eq('lawyerId', lawyerId).maybeSingle(),
+          sbAdmin.from('LawyerSettings').select('cancellationByEmail, cancellationByWhatsapp, googleCalendarConnected, googleCalendarRefreshToken').eq('lawyerId', lawyerId).maybeSingle(),
           sbAdmin.from('Lawyer').select('email, whatsapp').eq('id', lawyerId).maybeSingle(),
         ])
         const s = sRes.data
         const lawyer = lawyerRes.data
+
+        if (appt.googleCalendarEventId && s?.googleCalendarConnected && s?.googleCalendarRefreshToken) {
+          try {
+            const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
+            await deleteCalendarEvent(accessToken, appt.googleCalendarEventId)
+          } catch (_) {}
+        }
+
         if (s && lawyer) {
           const apptDate = new Date(appt.date)
           const dateStr = apptDate.toLocaleDateString('pt-BR', {
