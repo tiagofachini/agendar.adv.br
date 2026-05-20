@@ -237,15 +237,21 @@ Deno.serve(async (req) => {
       const date = url.searchParams.get('date')
       if (!date) return Response.json({ error: 'date required' }, { status: 400, headers: cors })
 
-      const dayStart = new Date(`${date}T00:00:00-03:00`).toISOString()
-      const dayEnd   = new Date(`${date}T23:59:59-03:00`).toISOString()
+      // Âncora em ms UTC para meia-noite BRT do dia solicitado.
+      // Todos os cálculos de slot derivam desta âncora por aritmética pura,
+      // eliminando qualquer risco de construção errada de string com timezone.
+      const dayStartMs = new Date(`${date}T00:00:00-03:00`).getTime()
+      const dayEndMs   = dayStartMs + 86_400_000   // +24 h, limite exclusivo
+
+      const dayStartISO = new Date(dayStartMs).toISOString()
+      const dayEndISO   = new Date(dayEndMs).toISOString()
 
       const { data: booked } = await sb
         .from('Appointment')
         .select('date,duration')
         .eq('lawyerId', lawyer.id)
-        .gte('date', dayStart)
-        .lte('date', dayEnd)
+        .gte('date', dayStartISO)
+        .lt('date', dayEndISO)
         .neq('status', 'CANCELLED')
 
       const busyIntervals: { start: number; end: number }[] = (booked ?? []).map(
@@ -261,7 +267,7 @@ Deno.serve(async (req) => {
           const fbRes = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
             method: 'POST',
             headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ timeMin: dayStart, timeMax: dayEnd, items: [{ id: 'primary' }] }),
+            body: JSON.stringify({ timeMin: dayStartISO, timeMax: dayEndISO, items: [{ id: 'primary' }] }),
           })
           if (fbRes.ok) {
             const fbData = await fbRes.json()
@@ -277,18 +283,21 @@ Deno.serve(async (req) => {
 
       const [sh, sm] = (s.workStartTime ?? '09:00').split(':').map(Number)
       const [eh, em] = (s.workEndTime ?? '18:00').split(':').map(Number)
-      const dur = s.slotDuration ?? 60
+      const dur      = s.slotDuration ?? 60
       const startMin = sh * 60 + sm
-      const endMin = eh * 60 + em
+      const endMin   = eh * 60 + em
 
       const slots: string[] = []
-      for (let m = startMin; m + dur <= endMin; m += dur) {
-        const hh = String(Math.floor(m / 60)).padStart(2, '0')
-        const mm = String(m % 60).padStart(2, '0')
-        const slotStart = new Date(`${date}T${hh}:${mm}:00-03:00`).getTime()
+      // slotStart calculado como offset em ms desde dayStartMs — sem timezone por slot
+      for (let minOffset = startMin; minOffset + dur <= endMin; minOffset += dur) {
+        const slotStart = dayStartMs + minOffset * 60_000
         const slotEnd   = slotStart + dur * 60_000
         const taken = busyIntervals.some(({ start, end }) => slotStart < end && slotEnd > start)
-        if (!taken) slots.push(`${hh}:${mm}`)
+        if (!taken) {
+          const h = Math.floor(minOffset / 60)
+          const m = minOffset % 60
+          slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+        }
       }
 
       return Response.json({ slots }, { headers: cors })
