@@ -380,6 +380,12 @@ Deno.serve(async (req) => {
               `📅 Novo agendamento!\n\nCliente: ${clientName}\nData: ${dateStr}\nHorário: ${timeStr}\nÁrea: ${specialty}${clientWhatsapp ? `\nWhatsApp: ${clientWhatsapp}` : ''}`
             )
           }
+          if (clientWhatsapp) {
+            await sendWhatsApp(
+              clientWhatsapp,
+              `✅ Agendamento confirmado!\n\nOlá, ${clientName}! Sua consulta foi agendada com sucesso.\n\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}\n⚖️ Área: ${specialty}${meetingLink ? `\n🔗 Reunião: ${meetingLink}` : address ? `\n📍 Local: ${address}` : ''}\n\n${lawyer.name}`
+            )
+          }
         } catch (_) {}
       }
 
