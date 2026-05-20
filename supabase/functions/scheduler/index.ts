@@ -238,13 +238,43 @@ Deno.serve(async (req) => {
       const date = url.searchParams.get('date')
       if (!date) return Response.json({ error: 'date required' }, { status: 400, headers: cors })
 
+      const dayStart = new Date(`${date}T00:00:00-03:00`).toISOString()
+      const dayEnd   = new Date(`${date}T23:59:59-03:00`).toISOString()
+
       const { data: booked } = await sb
         .from('Appointment')
         .select('date,duration')
         .eq('lawyerId', lawyer.id)
-        .gte('date', `${date}T00:00:00Z`)
-        .lte('date', `${date}T23:59:59Z`)
+        .gte('date', dayStart)
+        .lte('date', dayEnd)
         .neq('status', 'CANCELLED')
+
+      const busyIntervals: { start: number; end: number }[] = (booked ?? []).map(
+        (a: { date: string; duration: number }) => ({
+          start: new Date(a.date).getTime(),
+          end:   new Date(a.date).getTime() + (a.duration ?? 60) * 60_000,
+        })
+      )
+
+      if (s.googleCalendarConnected && s.googleCalendarRefreshToken) {
+        try {
+          const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
+          const fbRes = await fetch('https://www.googleapis.com/calendar/v3/freeBusy', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timeMin: dayStart, timeMax: dayEnd, items: [{ id: 'primary' }] }),
+          })
+          if (fbRes.ok) {
+            const fbData = await fbRes.json()
+            for (const period of fbData?.calendars?.primary?.busy ?? []) {
+              busyIntervals.push({
+                start: new Date(period.start).getTime(),
+                end:   new Date(period.end).getTime(),
+              })
+            }
+          }
+        } catch (_) { /* fallback: usa apenas agenda interna */ }
+      }
 
       const [sh, sm] = (s.workStartTime ?? '09:00').split(':').map(Number)
       const [eh, em] = (s.workEndTime ?? '18:00').split(':').map(Number)
@@ -256,13 +286,9 @@ Deno.serve(async (req) => {
       for (let m = startMin; m + dur <= endMin; m += dur) {
         const hh = String(Math.floor(m / 60)).padStart(2, '0')
         const mm = String(m % 60).padStart(2, '0')
-        const slotISO = new Date(`${date}T${hh}:${mm}:00-03:00`).toISOString()
-        const taken = (booked ?? []).some((a: { date: string; duration: number }) => {
-          const aStart = new Date(a.date).getTime()
-          const aEnd = aStart + (a.duration ?? 60) * 60_000
-          const sStart = new Date(slotISO).getTime()
-          return sStart >= aStart && sStart < aEnd
-        })
+        const slotStart = new Date(`${date}T${hh}:${mm}:00-03:00`).getTime()
+        const slotEnd   = slotStart + dur * 60_000
+        const taken = busyIntervals.some(({ start, end }) => slotStart < end && slotEnd > start)
         if (!taken) slots.push(`${hh}:${mm}`)
       }
 
