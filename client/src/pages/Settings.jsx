@@ -251,14 +251,17 @@ function ProfileSection({ data, onSaved }) {
       {/* Identidade visual */}
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Identidade visual</p>
-        <Field label="Logo do escritório">
-          <LogoUpload currentUrl={form.logoUrl} lawyerId={lawyer?.id} onChange={url => setForm(f => ({ ...f, logoUrl: url }))} />
-        </Field>
-        <div className="grid grid-cols-2 gap-4">
-          <ColorPicker label="Cor principal" value={form.brandColor1} onChange={v => setForm(f => ({ ...f, brandColor1: v }))} />
-          <ColorPicker label="Cor de destaque" value={form.brandColor2} onChange={v => setForm(f => ({ ...f, brandColor2: v }))} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Logo do escritório</label>
+            <LogoUpload currentUrl={form.logoUrl} lawyerId={lawyer?.id} onChange={url => setForm(f => ({ ...f, logoUrl: url }))} />
+          </div>
+          <div className="space-y-4">
+            <ColorPicker label="Cor principal" value={form.brandColor1} onChange={v => setForm(f => ({ ...f, brandColor1: v }))} />
+            <ColorPicker label="Cor de destaque" value={form.brandColor2} onChange={v => setForm(f => ({ ...f, brandColor2: v }))} />
+            <p className="text-xs text-gray-400 pt-1">Estas cores e a logo aparecem na sua página pública de agendamento.</p>
+          </div>
         </div>
-        <p className="text-xs text-gray-400">Estas cores e a logo aparecem na sua página pública de agendamento.</p>
       </div>
 
       {/* Endereço do escritório */}
@@ -355,24 +358,36 @@ function ProfileSection({ data, onSaved }) {
 
     </Section>
 
-    <div className="bg-white rounded-2xl shadow-sm p-6 mb-5 border border-gray-100">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-400">Excluir conta</p>
-          <p className="text-xs text-gray-300 mt-0.5">Remove permanentemente todos os seus dados da plataforma.</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleDeleteAccount}
-          disabled={deleteLoading}
-          className="text-xs text-gray-300 hover:text-red-400 transition-colors disabled:opacity-40"
-        >
-          {deleteLoading ? 'Excluindo...' : 'Excluir minha conta'}
-        </button>
+    <div className="bg-white rounded-2xl shadow-sm mb-5 border border-red-200 overflow-hidden">
+      <div className="flex items-center gap-2 px-6 py-3 bg-red-600">
+        <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+        </svg>
+        <span className="text-xs font-bold text-white uppercase tracking-widest">Zona do Perigo</span>
       </div>
-      {deleteError && (
-        <p className="mt-3 text-xs text-red-500">{deleteError}</p>
-      )}
+      <div className="p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1">
+            <p className="font-semibold text-gray-800 text-sm mb-2">Excluir conta permanentemente</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Esta ação remove de forma definitiva e irreversível todos os dados associados à sua conta:
+              perfil, clientes, compromissos, configurações, integrações e histórico financeiro.
+              Após a exclusão, não é possível recuperar nenhuma informação nem desfazer a operação.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDeleteAccount}
+            disabled={deleteLoading}
+            className="flex-shrink-0 px-4 py-2 rounded-lg border border-red-300 text-red-600 text-xs font-semibold hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors disabled:opacity-40 self-start"
+          >
+            {deleteLoading ? 'Excluindo...' : 'Excluir minha conta'}
+          </button>
+        </div>
+        {deleteError && (
+          <p className="mt-4 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{deleteError}</p>
+        )}
+      </div>
     </div>
     </>
   )
