@@ -8,6 +8,37 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  deploy-functions:
+    name: Deploy Supabase Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          PROJECT=nfgexlsfmyfypueslzxo
+          deploy() { supabase functions deploy "$1" --project-ref $PROJECT "${@:2}"; }
+          deploy admin
+          deploy appointments
+          deploy clients
+          deploy dashboard
+          deploy finance
+          deploy google-calendar
+          deploy scheduler
+          deploy settings
+          deploy stripe-connect
+          deploy stripe-webhook --no-verify-jwt
+          deploy whatsapp
+
   deploy:
     name: Build e Deploy via FTP
     runs-on: ubuntu-latest
