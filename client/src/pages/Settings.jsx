@@ -743,6 +743,7 @@ function CalendarSection({ data, onSaved }) {
 function FinancialSection({ data, banner }) {
   const f = data.financial || {}
   const [onboarding, setOnboarding] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
   const [error, setError] = useState('')
 
   const startOnboarding = async () => {
@@ -754,6 +755,18 @@ function FinancialSection({ data, banner }) {
       setError(err.response?.data?.error || 'Erro ao iniciar conexão com Stripe.')
     } finally {
       setOnboarding(false)
+    }
+  }
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Remover a conta Stripe vinculada?\n\nIsso não exclui sua conta na Stripe — apenas desvincula do AgendarAdv. Você poderá reconectar ou vincular outra conta a qualquer momento.')) return
+    setDisconnecting(true); setError('')
+    try {
+      await api.post('/stripe-connect/disconnect')
+      window.location.reload()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao remover conta.')
+      setDisconnecting(false)
     }
   }
 
@@ -830,6 +843,16 @@ function FinancialSection({ data, banner }) {
           <p className="text-xs text-gray-400 text-center">
             Para gerenciar saques e dados bancários, acesse o painel Stripe na aba Financeiro.
           </p>
+        )}
+
+        {f.stripeAccountId && (
+          <button
+            type="button"
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            className="w-full py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-40">
+            {disconnecting ? 'Removendo...' : 'Remover conta Stripe vinculada'}
+          </button>
         )}
       </div>
     </div>
