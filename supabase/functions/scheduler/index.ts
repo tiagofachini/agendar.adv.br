@@ -210,12 +210,17 @@ Deno.serve(async (req) => {
       const hourlyRate = parseFloat(s.hourlyRate ?? '0')
       const hasStripe = !!(lawyer.stripeChargesEnabled && lawyer.stripeAccountId && hourlyRate > 0)
 
+      type DayConfig = { day: number; active: boolean }
+      const workDays = s.workSchedule && Array.isArray(s.workSchedule)
+        ? (s.workSchedule as DayConfig[]).filter(d => d.active).map(d => d.day)
+        : (s.workDays ?? [1, 2, 3, 4, 5])
+
       return Response.json(
         {
           lawyerName: lawyer.name,
           specialties: s.specialties ?? [],
           slotDuration: s.slotDuration ?? 60,
-          workDays: s.workDays ?? [1, 2, 3, 4, 5],
+          workDays,
           workStartTime: s.workStartTime ?? '09:00',
           workEndTime: s.workEndTime ?? '18:00',
           highlightMessage: s.highlightMessage ?? null,
@@ -237,11 +242,42 @@ Deno.serve(async (req) => {
       const date = url.searchParams.get('date')
       if (!date) return Response.json({ error: 'date required' }, { status: 400, headers: cors })
 
-      // Âncora em ms UTC para meia-noite BRT do dia solicitado.
-      // Todos os cálculos de slot derivam desta âncora por aritmética pura,
-      // eliminando qualquer risco de construção errada de string com timezone.
+      // Âncora BRT: meia-noite do dia em ms UTC. Todos os offsets derivam por aritmética pura.
       const dayStartMs = new Date(`${date}T00:00:00-03:00`).getTime()
-      const dayEndMs   = dayStartMs + 86_400_000   // +24 h, limite exclusivo
+      const dayEndMs   = dayStartMs + 86_400_000
+
+      // Dia da semana em BRT (0=Dom … 6=Sáb) — usa meio-dia para evitar ambiguidade de DST
+      const dayOfWeek = new Date(`${date}T12:00:00-03:00`).getDay()
+
+      // Determina janela de trabalho para este dia específico
+      type DayCfg = { day: number; active: boolean; start: string; end: string; lunchStart?: string; lunchEnd?: string }
+      let startMin: number
+      let endMin: number
+      let lunchStartMin: number | null = null
+      let lunchEndMin:   number | null = null
+
+      if (s.workSchedule && Array.isArray(s.workSchedule)) {
+        const dc = (s.workSchedule as DayCfg[]).find(d => d.day === dayOfWeek)
+        if (!dc || !dc.active) return Response.json({ slots: [] }, { headers: cors })
+        const [sh, sm] = dc.start.split(':').map(Number)
+        const [eh, em] = dc.end.split(':').map(Number)
+        startMin = sh * 60 + sm
+        endMin   = eh * 60 + em
+        if (dc.lunchStart && dc.lunchEnd && dc.lunchStart !== dc.lunchEnd) {
+          const [lsh, lsm] = dc.lunchStart.split(':').map(Number)
+          const [leh, lem] = dc.lunchEnd.split(':').map(Number)
+          lunchStartMin = lsh * 60 + lsm
+          lunchEndMin   = leh * 60 + lem
+        }
+      } else {
+        if (!(s.workDays ?? [1, 2, 3, 4, 5]).includes(dayOfWeek)) {
+          return Response.json({ slots: [] }, { headers: cors })
+        }
+        const [sh, sm] = (s.workStartTime ?? '09:00').split(':').map(Number)
+        const [eh, em] = (s.workEndTime ?? '18:00').split(':').map(Number)
+        startMin = sh * 60 + sm
+        endMin   = eh * 60 + em
+      }
 
       const dayStartISO = new Date(dayStartMs).toISOString()
       const dayEndISO   = new Date(dayEndMs).toISOString()
@@ -260,6 +296,14 @@ Deno.serve(async (req) => {
           end:   new Date(a.date).getTime() + (a.duration ?? 60) * 60_000,
         })
       )
+
+      // Intervalo de almoço como período bloqueado
+      if (lunchStartMin !== null && lunchEndMin !== null && lunchStartMin < lunchEndMin) {
+        busyIntervals.push({
+          start: dayStartMs + lunchStartMin * 60_000,
+          end:   dayStartMs + lunchEndMin   * 60_000,
+        })
+      }
 
       if (s.googleCalendarConnected && s.googleCalendarRefreshToken) {
         try {
@@ -281,14 +325,8 @@ Deno.serve(async (req) => {
         } catch (_) { /* fallback: usa apenas agenda interna */ }
       }
 
-      const [sh, sm] = (s.workStartTime ?? '09:00').split(':').map(Number)
-      const [eh, em] = (s.workEndTime ?? '18:00').split(':').map(Number)
-      const dur      = s.slotDuration ?? 60
-      const startMin = sh * 60 + sm
-      const endMin   = eh * 60 + em
-
+      const dur = s.slotDuration ?? 60
       const slots: string[] = []
-      // slotStart calculado como offset em ms desde dayStartMs — sem timezone por slot
       for (let minOffset = startMin; minOffset + dur <= endMin; minOffset += dur) {
         const slotStart = dayStartMs + minOffset * 60_000
         const slotEnd   = slotStart + dur * 60_000

@@ -666,13 +666,26 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
   )
 }
 
+const DAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+const DAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+
+function buildSchedule(c) {
+  if (c.workSchedule?.length === 7) return c.workSchedule
+  const days = c.workDays ?? [1, 2, 3, 4, 5]
+  const start = c.workStartTime ?? '09:00'
+  const end   = c.workEndTime   ?? '18:00'
+  return [0, 1, 2, 3, 4, 5, 6].map(day => ({
+    day, active: days.includes(day),
+    start, end, lunchStart: '12:00', lunchEnd: '13:00',
+  }))
+}
+
 function CalendarSection({ data, onSaved }) {
   const c = data.calendar || {}
   const [form, setForm] = useState({
-    workDays: c.workDays || [1, 2, 3, 4, 5],
-    workStartTime: c.workStartTime || '09:00',
-    workEndTime: c.workEndTime || '18:00',
-    hourlyRate: c.hourlyRate || '',
+    workSchedule: buildSchedule(c),
+    specialtyRates: c.specialtyRates ?? [],
+    hourlyRate: c.hourlyRate ?? '',
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -681,23 +694,40 @@ function CalendarSection({ data, onSaved }) {
   useEffect(() => {
     const c = data.calendar || {}
     setForm({
-      workDays: c.workDays || [1, 2, 3, 4, 5],
-      workStartTime: c.workStartTime || '09:00',
-      workEndTime: c.workEndTime || '18:00',
-      hourlyRate: c.hourlyRate || '',
+      workSchedule: buildSchedule(c),
+      specialtyRates: c.specialtyRates ?? [],
+      hourlyRate: c.hourlyRate ?? '',
     })
   }, [data])
 
-  const toggleDay = (d) =>
+  const updateDay = (day, field, value) =>
     setForm(f => ({
       ...f,
-      workDays: f.workDays.includes(d) ? f.workDays.filter(x => x !== d) : [...f.workDays, d].sort(),
+      workSchedule: f.workSchedule.map(d => d.day === day ? { ...d, [field]: value } : d),
+    }))
+
+  const addRate = () =>
+    setForm(f => ({ ...f, specialtyRates: [...f.specialtyRates, { specialty: '', rate: '' }] }))
+
+  const removeRate = (i) =>
+    setForm(f => ({ ...f, specialtyRates: f.specialtyRates.filter((_, idx) => idx !== i) }))
+
+  const updateRate = (i, field, value) =>
+    setForm(f => ({
+      ...f,
+      specialtyRates: f.specialtyRates.map((r, idx) => idx === i ? { ...r, [field]: value } : r),
     }))
 
   const save = async (e) => {
     e.preventDefault(); setLoading(true); setSaved(false); setError('')
     try {
-      await api.put('/settings/calendar', form)
+      await api.put('/settings/calendar', {
+        workSchedule: form.workSchedule,
+        specialtyRates: form.specialtyRates
+          .filter(r => r.specialty && r.rate !== '')
+          .map(r => ({ specialty: r.specialty, rate: parseFloat(r.rate) })),
+        hourlyRate: form.hourlyRate !== '' ? parseFloat(form.hourlyRate) : null,
+      })
       setSaved(true); onSaved()
     } catch (err) {
       setError(errMsg(err))
@@ -705,36 +735,145 @@ function CalendarSection({ data, onSaved }) {
     setLoading(false)
   }
 
+  const usedSpecialties = new Set(form.specialtyRates.map(r => r.specialty).filter(Boolean))
+
   return (
     <Section title="Configurações da agenda" onSubmit={save} loading={loading} saved={saved} error={error}>
       <InfoBlock>
-        <p className="font-semibold text-navy-900">Defina sua disponibilidade</p>
-        <p>Estes são os horários e dias que seus clientes verão disponíveis para agendar. Fora dessa janela, nenhum horário será oferecido.</p>
-        <p>O <span className="font-semibold">valor da consulta por hora</span> é usado pelo sistema para calcular automaticamente o valor cobrado ao cliente via Stripe. Se não quiser cobrança automática, deixe o campo em branco.</p>
+        <p className="font-semibold text-navy-900">Defina sua disponibilidade e valores</p>
+        <p>Configure cada dia da semana com seu próprio horário de início, fim e intervalo de almoço. Dias inativos não aparecem no agendador público.</p>
       </InfoBlock>
-      <Field label="Dias de trabalho">
-        <div className="flex gap-2 flex-wrap">
-          {['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map((d, i) => (
-            <button type="button" key={d} onClick={() => toggleDay(i)}
-              className={`w-12 h-12 rounded-xl text-sm font-semibold border-2 transition-colors
-                ${form.workDays.includes(i) ? 'bg-navy-900 border-navy-900 text-white' : 'border-gray-200 text-gray-500 hover:border-navy-900'}`}>
-              {d}
-            </button>
+
+      {/* ── Grid de expediente por dia ── */}
+      <Field label="Expediente por dia da semana">
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          {/* Cabeçalho — oculto em mobile */}
+          <div className="hidden sm:grid bg-gray-50 border-b border-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wider gap-3"
+               style={{ gridTemplateColumns: '44px 96px 1fr 1fr 1fr 1fr' }}>
+            <div />
+            <div>Dia</div>
+            <div>Início</div>
+            <div>Fim</div>
+            <div>Almoço</div>
+            <div>Até</div>
+          </div>
+
+          {form.workSchedule.map(dc => (
+            <div key={dc.day}
+              className="px-4 py-3 border-b border-gray-50 last:border-0 flex flex-col gap-2 sm:grid sm:items-center sm:gap-3"
+              style={{ gridTemplateColumns: '44px 96px 1fr 1fr 1fr 1fr' }}>
+
+              {/* Toggle */}
+              <button type="button" onClick={() => updateDay(dc.day, 'active', !dc.active)}
+                className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0
+                  ${dc.active ? 'bg-navy-900' : 'bg-gray-200'}`}>
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all
+                  ${dc.active ? 'left-5' : 'left-0.5'}`} />
+              </button>
+
+              {/* Nome do dia */}
+              <span className={`text-sm font-semibold hidden sm:block ${dc.active ? 'text-navy-900' : 'text-gray-400'}`}>
+                {DAY_SHORT[dc.day]}
+              </span>
+              <span className={`text-sm font-semibold sm:hidden ${dc.active ? 'text-navy-900' : 'text-gray-400'}`}>
+                {DAY_NAMES[dc.day]}
+              </span>
+
+              {dc.active ? (
+                <>
+                  <div className="flex sm:contents items-center gap-2 flex-wrap">
+                    <div className="flex-1 min-w-[120px] sm:contents">
+                      <label className="text-xs text-gray-400 sm:hidden block mb-0.5">Início</label>
+                      <input type="time" value={dc.start}
+                        onChange={e => updateDay(dc.day, 'start', e.target.value)}
+                        className={inputCls + ' text-sm py-2'} />
+                    </div>
+                    <div className="flex-1 min-w-[120px] sm:contents">
+                      <label className="text-xs text-gray-400 sm:hidden block mb-0.5">Fim</label>
+                      <input type="time" value={dc.end}
+                        onChange={e => updateDay(dc.day, 'end', e.target.value)}
+                        className={inputCls + ' text-sm py-2'} />
+                    </div>
+                    <div className="flex-1 min-w-[120px] sm:contents">
+                      <label className="text-xs text-gray-400 sm:hidden block mb-0.5">Almoço</label>
+                      <input type="time" value={dc.lunchStart}
+                        onChange={e => updateDay(dc.day, 'lunchStart', e.target.value)}
+                        className={inputCls + ' text-sm py-2'} />
+                    </div>
+                    <div className="flex-1 min-w-[120px] sm:contents">
+                      <label className="text-xs text-gray-400 sm:hidden block mb-0.5">Até</label>
+                      <input type="time" value={dc.lunchEnd}
+                        onChange={e => updateDay(dc.day, 'lunchEnd', e.target.value)}
+                        className={inputCls + ' text-sm py-2'} />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <span className="text-sm text-gray-300 italic sm:col-span-4">Sem expediente</span>
+              )}
+            </div>
           ))}
         </div>
+        <p className="text-xs text-gray-400 mt-2">
+          O intervalo de almoço fica indisponível para agendamentos. Para não ter intervalo, defina almoço e até com o mesmo valor.
+        </p>
       </Field>
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Horário de início">
-          <input type="time" className={inputCls} value={form.workStartTime} onChange={e => setForm({ ...form, workStartTime: e.target.value })} />
-        </Field>
-        <Field label="Horário de término">
-          <input type="time" className={inputCls} value={form.workEndTime} onChange={e => setForm({ ...form, workEndTime: e.target.value })} />
-        </Field>
-      </div>
-      <Field label="Valor da consulta (R$/hora)">
-        <input type="number" className={inputCls} value={form.hourlyRate}
-          onChange={e => setForm({ ...form, hourlyRate: e.target.value })}
-          placeholder="Ex: 300" min="0" step="0.01" />
+
+      {/* ── Valores de consulta ── */}
+      <Field label="Valor das consultas (R$/hora)">
+        <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+          {/* Valor padrão */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <span className="text-sm text-gray-700 flex-1 font-medium">Padrão (todas as especialidades)</span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="relative w-36">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">R$</span>
+                <input type="number" value={form.hourlyRate}
+                  onChange={e => setForm(f => ({ ...f, hourlyRate: e.target.value }))}
+                  className={inputCls + ' pl-9 py-2 text-sm'}
+                  placeholder="—" min="0" step="0.01" />
+              </div>
+              <span className="text-sm text-gray-400 w-10">/hora</span>
+            </div>
+          </div>
+
+          {/* Valores por especialidade */}
+          {form.specialtyRates.map((rate, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3">
+              <select value={rate.specialty}
+                onChange={e => updateRate(i, 'specialty', e.target.value)}
+                className={inputCls + ' flex-1 py-2 text-sm'}>
+                <option value="">Selecione a especialidade...</option>
+                {LEGAL_SPECIALTIES.filter(s => s === rate.specialty || !usedSpecialties.has(s)).map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="relative w-36">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">R$</span>
+                  <input type="number" value={rate.rate}
+                    onChange={e => updateRate(i, 'rate', e.target.value)}
+                    className={inputCls + ' pl-9 py-2 text-sm'}
+                    placeholder="0,00" min="0" step="0.01" />
+                </div>
+                <span className="text-sm text-gray-400 w-10">/hora</span>
+              </div>
+              <button type="button" onClick={() => removeRate(i)}
+                className="text-red-400 hover:text-red-600 transition-colors text-xl leading-none flex-shrink-0">×</button>
+            </div>
+          ))}
+
+          {/* Adicionar especialidade */}
+          <div className="px-4 py-3">
+            <button type="button" onClick={addRate}
+              className="text-sm text-navy-700 font-medium hover:text-navy-900 transition-colors">
+              + Adicionar valor por especialidade
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          O valor por especialidade tem precedência sobre o valor padrão. Deixe em branco para não cobrar automaticamente via Stripe.
+        </p>
       </Field>
     </Section>
   )

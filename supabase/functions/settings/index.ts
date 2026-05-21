@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
             googleCalendarConnected: s?.googleCalendarConnected ?? false,
           },
           calendar: {
+            workSchedule: s?.workSchedule ?? null,
+            specialtyRates: s?.specialtyRates ?? [],
             workDays: s?.workDays ?? [1, 2, 3, 4, 5],
             workStartTime: s?.workStartTime ?? '09:00',
             workEndTime: s?.workEndTime ?? '18:00',
@@ -121,6 +123,17 @@ Deno.serve(async (req) => {
 
       if (section === 'calendar') {
         const body = await req.json()
+        if (body.workSchedule && Array.isArray(body.workSchedule)) {
+          type DayConfig = { day: number; active: boolean; start: string; end: string }
+          const active: DayConfig[] = body.workSchedule.filter((d: DayConfig) => d.active)
+          body.workDays = active.map((d) => d.day).sort((a, b) => a - b)
+          body.workStartTime = active.length > 0
+            ? active.reduce((min, d) => d.start < min ? d.start : min, active[0].start)
+            : '09:00'
+          body.workEndTime = active.length > 0
+            ? active.reduce((max, d) => d.end > max ? d.end : max, active[0].end)
+            : '18:00'
+        }
         const error = await upsertSettings(body)
         if (error) throw error
         return Response.json({ ok: true }, { headers: cors })
