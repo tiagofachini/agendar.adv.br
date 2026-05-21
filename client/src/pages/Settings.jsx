@@ -47,8 +47,7 @@ function Section({ title, desc, children, onSubmit, loading, saved, error }) {
       {error && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
           {error}
-        </div>
-      )}
+        </div>)}
       <div className="mt-5 flex justify-end">
         <SaveBtn loading={loading} saved={saved} />
       </div>
@@ -247,7 +246,6 @@ function ProfileSection({ data, onSaved }) {
   return (
     <>
     <Section title="Perfil do escritório" desc="Sua vitrine pública e dados internos." onSubmit={save} loading={loading} saved={saved} error={error}>
-
       {/* Identidade visual */}
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Identidade visual</p>
