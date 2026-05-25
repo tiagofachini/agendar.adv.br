@@ -54,6 +54,7 @@ Deno.serve(async (req) => {
             highlightMessage: s?.highlightMessage ?? '',
             customMeetingUrl: s?.customMeetingUrl ?? '',
             googleCalendarConnected: s?.googleCalendarConnected ?? false,
+            listedInDirectory: s?.listedInDirectory ?? true,
           },
           calendar: {
             workSchedule: s?.workSchedule ?? null,

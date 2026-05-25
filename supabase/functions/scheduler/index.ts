@@ -175,6 +175,74 @@ Deno.serve(async (req) => {
 
   if (!slug) return new Response('Not Found', { status: 404, headers: cors })
 
+  // Diretório público — não precisa de slug de advogado
+  if (slug === 'directory' && req.method === 'GET') {
+    try {
+      const sbAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      )
+      const q            = url.searchParams.get('q')?.trim().toLowerCase() ?? ''
+      const cityFilter   = url.searchParams.get('city')?.trim().toLowerCase() ?? ''
+      const stateFilter  = url.searchParams.get('state')?.trim().toUpperCase() ?? ''
+      const specFilter   = url.searchParams.get('specialty')?.trim() ?? ''
+
+      const { data: settings, error: sErr } = await sbAdmin
+        .from('LawyerSettings')
+        .select('schedulerSlug, city, state, specialties, brandColor1, brandColor2, logoUrl, highlightMessage, lawyerId')
+        .eq('listedInDirectory', true)
+        .not('schedulerSlug', 'is', null)
+        .neq('schedulerSlug', '')
+      if (sErr) throw sErr
+
+      type SRow = {
+        schedulerSlug: string; city: string | null; state: string | null
+        specialties: string[] | null; brandColor1: string | null; brandColor2: string | null
+        logoUrl: string | null; highlightMessage: string | null; lawyerId: string
+      }
+
+      const rows = (settings ?? []) as SRow[]
+      const ids = rows.map(r => r.lawyerId).filter(Boolean)
+
+      const { data: lawyers } = ids.length > 0
+        ? await sbAdmin.from('Lawyer').select('id, name').in('id', ids)
+        : { data: [] as { id: string; name: string }[] }
+
+      const nameMap: Record<string, string> = Object.fromEntries(
+        (lawyers ?? []).map(l => [l.id, l.name])
+      )
+
+      let results = rows
+        .filter(r => r.schedulerSlug && nameMap[r.lawyerId])
+        .map(r => ({
+          slug: r.schedulerSlug,
+          lawyerName: nameMap[r.lawyerId],
+          city: r.city ?? '',
+          state: r.state ?? '',
+          specialties: r.specialties ?? [],
+          brandColor1: r.brandColor1 ?? null,
+          brandColor2: r.brandColor2 ?? null,
+          logoUrl: r.logoUrl ?? null,
+          highlightMessage: r.highlightMessage ?? null,
+        }))
+
+      if (q) results = results.filter(r =>
+        r.lawyerName.toLowerCase().includes(q) ||
+        r.city.toLowerCase().includes(q) ||
+        r.specialties.some(s => s.toLowerCase().includes(q))
+      )
+      if (cityFilter) results = results.filter(r => r.city.toLowerCase().includes(cityFilter))
+      if (stateFilter) results = results.filter(r => r.state.toUpperCase() === stateFilter)
+      if (specFilter)  results = results.filter(r => r.specialties.includes(specFilter))
+
+      results.sort((a, b) => a.lawyerName.localeCompare(b.lawyerName, 'pt-BR'))
+
+      return Response.json({ lawyers: results }, { headers: cors })
+    } catch (err) {
+      return Response.json({ error: err.message }, { status: 500, headers: cors })
+    }
+  }
+
   const sb = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
