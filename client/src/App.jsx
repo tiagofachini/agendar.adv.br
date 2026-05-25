@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import AppLayout from './layouts/AppLayout'
 
 import LandingPage from './pages/LandingPage'
+import Directory from './pages/Directory'
 import Scheduler from './pages/Scheduler'
 import Dashboard from './pages/Dashboard'
 import Appointments from './pages/Appointments'
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/settings"     element={<Settings />} />
             <Route path="/admin"        element={<AdminPage />} />
           </Route>
+          <Route path="/advogados" element={<Directory />} />
           <Route path="/:slug" element={<Scheduler />} />
         </Routes>
       </BrowserRouter>
