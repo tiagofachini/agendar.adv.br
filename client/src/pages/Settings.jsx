@@ -548,6 +548,7 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
     slotDuration: sc.slotDuration || 60,
     highlightMessage: sc.highlightMessage || '',
     customMeetingUrl: sc.customMeetingUrl || '',
+    listedInDirectory: sc.listedInDirectory !== false,
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -561,6 +562,7 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
       slotDuration: sc.slotDuration || 60,
       highlightMessage: sc.highlightMessage || '',
       customMeetingUrl: sc.customMeetingUrl || '',
+      listedInDirectory: sc.listedInDirectory !== false,
     })
   }, [data])
 
@@ -637,6 +639,28 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
           </p>
         )}
       </Field>
+      <div className="border border-gray-100 rounded-xl p-4 bg-gray-50/40">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Aparecer no diretório público</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Seu agendador será listado em{' '}
+              <a href="https://agendar.adv.br/advogados" target="_blank" rel="noopener noreferrer" className="underline hover:text-navy-700">
+                agendar.adv.br/advogados
+              </a>{' '}
+              para ser encontrado pelo Google e por clientes.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm(f => ({ ...f, listedInDirectory: !f.listedInDirectory }))}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-4 ${form.listedInDirectory ? 'bg-navy-900' : 'bg-gray-300'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.listedInDirectory ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+      </div>
+
       <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-gray-50/40">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Reunião online</p>

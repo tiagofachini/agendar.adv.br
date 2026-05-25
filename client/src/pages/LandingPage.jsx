@@ -86,12 +86,17 @@ export default function LandingPage() {
               Agendar<span className="text-brand-500">Adv</span>
             </span>
           </div>
-          <button
-            onClick={() => openModal('login')}
-            className="px-5 py-2 rounded-lg border border-brand-500 text-brand-400 text-sm font-medium hover:bg-brand-500 hover:text-white transition-colors"
-          >
-            Entrar
-          </button>
+          <div className="flex items-center gap-3">
+            <Link to="/advogados" className="text-gray-300 text-sm font-medium hover:text-white transition-colors hidden sm:block">
+              Encontrar advogado
+            </Link>
+            <button
+              onClick={() => openModal('login')}
+              className="px-5 py-2 rounded-lg border border-brand-500 text-brand-400 text-sm font-medium hover:bg-brand-500 hover:text-white transition-colors"
+            >
+              Entrar
+            </button>
+          </div>
         </div>
       </nav>
 
