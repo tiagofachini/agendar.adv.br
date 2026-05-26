@@ -1,11 +1,67 @@
 # CLAUDE.md — Guia de trabalho para este projeto
 
 ## Estilo de trabalho
+**Compromisso:** Essas diretrizes priorizam a cautela em vez da velocidade. Para tarefas triviais, use seu bom senso.
 
-- **Planeje antes de executar** tarefas com múltiplos arquivos ou impacto em banco. Para tarefas simples, execute diretamente.
+## 1. Pense Antes de Codificar
+
+**Não assuma nada. Não esconda dúvidas. Exponha os trade-offs.**
+
+Antes de implementar:
+
+* Declare explicitamente suas suposições. Se estiver incerto, pergunte.
+* Se houver múltiplas interpretações possíveis, apresente todas — não escolha em silêncio.
+* Se existir uma abordagem mais simples, diga. Conteste quando for necessário.
+* Se algo não estiver claro, pare. Nomeie exatamente o que está confuso. Pergunte.
+
+## 2. Simplicidade em Primeiro Lugar
+
+**Código mínimo que resolve o problema. Nada especulativo.**
+
+* Nenhuma funcionalidade além do que foi solicitado.
+* Nenhuma abstração para código de uso único.
+* Nenhuma “flexibilidade” ou “configurabilidade” que não tenha sido pedida.
+* Nenhum tratamento de erro para cenários impossíveis.
+* Se você escrever 200 linhas e poderia ser 50, reescreva.
+
+Pergunte a si mesmo: “Um engenheiro sênior diria que isso está supercomplicado?” Se a resposta for sim, simplifique.
+
+## 3. Alterações Cirúrgicas
+
+**Toque apenas no que precisa. Limpe apenas a sua própria bagunça.**
+
+Ao editar código existente:
+
+* Não “melhore” código adjacente, comentários ou formatação.
+* Não refatore coisas que não estão quebradas.
+* Mantenha o estilo existente, mesmo que você faria diferente.
+* Se notar código morto não relacionado, mencione — não delete.
+
+Quando suas alterações criarem “órfãos”:
+
+* Remova imports, variáveis ou funções que **suas alterações** tornaram inutilizadas.
+* Não remova código morto que já existia, a menos que seja solicitado.
+
+O teste: Toda linha alterada deve ser diretamente rastreável ao pedido do usuário.
+
+## 4. Execução Orientada por Objetivos
+
+**Defina critérios de sucesso. Itere até verificar.**
+
+Transforme as tarefas em objetivos verificáveis:
+
+* “Adicionar validação” → “Escreva testes para entradas inválidas e depois faça-os passar”
+* “Corrigir o bug” → “Escreva um teste que reproduza o bug e depois faça-o passar”
+* “Refatorar X” → “Garanta que os testes passem antes e depois da refatoração”
+
+Para tarefas com múltiplos passos, apresente um plano breve:
+Critérios de sucesso fortes permitem que você itere de forma independente. Critérios fracos (“faça funcionar”) exigem esclarecimentos constantes.
+**Essas diretrizes estão funcionando quando:** houver menos alterações desnecessárias nos diffs, menos reescritas por supercomplicação e as perguntas de esclarecimento aparecerem **antes** da implementação, e não depois de erros.
+
+
 - **Commit e push a cada entrega concluída** — nunca deixe mudanças relevantes sem versionar.
 - **Build antes de commitar** (`npm run build`) para garantir que nenhum erro de compilação vai para produção.
-- Quando uma tarefa depende de ação manual do usuário em serviços externos (Supabase, GitHub, DNS), forneça o **link direto** e a instrução exata do que deve ser feito — não peça para o usuário "ir lá e configurar".
+- Quando uma tarefa depende de ação manual do usuário em serviços externos (Supabase, GitHub, DNS), forneça o **link direto de cada ferramenta** e a instrução exata do que deve ser feito — não peça para o usuário "ir lá e configurar".
 - Comunique o que está fazendo em frases curtas. Ao terminar, resuma o que mudou e o que ainda depende do usuário.
 
 ---
