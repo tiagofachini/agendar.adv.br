@@ -64,7 +64,12 @@ export default function LandingPage() {
     setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: 'https://agendar.adv.br' },
+      options: {
+        redirectTo: 'https://agendar.adv.br',
+        queryParams: {
+          prompt: modal === 'register' ? 'consent' : 'select_account',
+        },
+      },
     })
     if (error) setError(error.message)
   }
