@@ -554,6 +554,17 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [phoneStripped, setPhoneStripped] = useState(false)
+  const [gcDisconnecting, setGcDisconnecting] = useState(false)
+
+  const handleDisconnectGoogle = async () => {
+    if (!window.confirm('Desconectar a integração com Google? Novos agendamentos não gerarão links Meet automáticos.')) return
+    setGcDisconnecting(true)
+    try {
+      await api.post('/google-calendar/disconnect')
+      onSaved()
+    } catch { /* noop */ }
+    setGcDisconnecting(false)
+  }
 
   useEffect(() => {
     const sc = data.scheduler || {}
@@ -665,7 +676,13 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Reunião online</p>
           {sc.googleCalendarConnected ? (
-            <span className="text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full">✓ Google Meet ativo</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full">✓ Google Meet ativo</span>
+              <button type="button" onClick={handleDisconnectGoogle} disabled={gcDisconnecting}
+                className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 transition-colors">
+                {gcDisconnecting ? 'Desconectando...' : 'Desconectar'}
+              </button>
+            </div>
           ) : (
             <button type="button" onClick={onGoToGoogle}
               className="text-xs font-medium text-navy-700 hover:underline">
