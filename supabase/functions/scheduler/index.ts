@@ -12,15 +12,26 @@ const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
 function clientEmailHtml(p: {
   lawyerName: string; dateStr: string; timeStr: string
   specialty: string; address: string; meetingLink: string | null
+  pixKey?: string | null; pixAmount?: string | null
 }) {
   const locationRow = p.meetingLink
     ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Reunião online</td><td style="font-weight:600"><a href="${p.meetingLink}" style="color:#2563eb">${p.meetingLink}</a></td></tr>`
     : p.address ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Local</td><td style="font-weight:600">${p.address}</td></tr>` : ''
 
+  const statusBlock = p.pixKey
+    ? `<p style="color:#d97706;font-weight:600">⏳ Agendamento recebido! Para confirmar seu horário, realize o pagamento via PIX.</p>
+       <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:12px 0">
+         <p style="margin:0 0 4px;color:#92400e;font-size:13px">Chave PIX:</p>
+         <p style="margin:0;font-weight:700;font-size:16px;color:#78350f">${p.pixKey}</p>
+         ${p.pixAmount ? `<p style="margin:8px 0 0;color:#92400e;font-size:14px">Valor: <strong>${p.pixAmount}</strong></p>` : ''}
+       </div>
+       <p style="color:#6b7280;font-size:13px">Você receberá um email de confirmação assim que o advogado verificar o pagamento.</p>`
+    : `<p style="color:#16a34a;font-weight:600">✓ Agendamento confirmado! Você receberá os detalhes em breve.</p>`
+
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
   <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
     <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
-    <p style="color:#a0aec0;margin:8px 0 0">Confirmação de agendamento</p>
+    <p style="color:#a0aec0;margin:8px 0 0">Agendamento recebido</p>
   </div>
   <p>Olá! Seu agendamento com <strong>${p.lawyerName}</strong> foi recebido.</p>
   <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
@@ -32,7 +43,7 @@ function clientEmailHtml(p: {
       ${locationRow}
     </table>
   </div>
-  <p style="color:#16a34a;font-weight:600">✓ Agendamento recebido! Você será notificado por email após a confirmação do pagamento.</p>
+  ${statusBlock}
   <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv. Não responda este email.</p>
 </body></html>`
 }
@@ -40,9 +51,18 @@ function clientEmailHtml(p: {
 function lawyerEmailHtml(p: {
   clientName: string; clientEmail: string; clientWhatsapp: string
   dateStr: string; timeStr: string; specialty: string; description: string; meetingLink: string | null
+  pixAmount?: string | null
 }) {
   const locationRow = p.meetingLink
     ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Reunião online</td><td style="font-weight:600"><a href="${p.meetingLink}">${p.meetingLink}</a></td></tr>`
+    : ''
+
+  const pixAlert = p.pixAmount
+    ? `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-top:12px">
+         <p style="margin:0;color:#854d0e;font-size:13px;font-weight:600">⚠️ Aguardando confirmação de pagamento PIX</p>
+         <p style="margin:4px 0 0;color:#92400e;font-size:12px">Valor esperado: ${p.pixAmount}</p>
+         <p style="margin:4px 0 0;color:#92400e;font-size:12px">Confirme o recebimento no painel de Compromissos após verificar o PIX.</p>
+       </div>`
     : ''
 
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
@@ -65,6 +85,7 @@ function lawyerEmailHtml(p: {
       <p style="color:#6b7280;margin:0 0 4px 0;font-size:13px">Descrição do caso:</p>
       <p style="margin:0;font-style:italic">"${p.description}"</p>
     </div>` : ''}
+    ${pixAlert}
   </div>
   <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv.</p>
 </body></html>`
@@ -295,6 +316,7 @@ Deno.serve(async (req) => {
           hourlyRate: s.hourlyRate ?? null,
           specialtyRates: s.specialtyRates ?? [],
           hasStripe,
+          pixKey: s.pixKey ?? null,
           logoUrl: s.logoUrl ?? null,
           street: s.street ?? '',
           number: s.number ?? '',
@@ -412,11 +434,23 @@ Deno.serve(async (req) => {
 
     if (req.method === 'POST' && action === 'book') {
       const body = await req.json()
-      const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot } = body
+      const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot, pixPayment } = body
 
       if (!clientName || !clientEmail || !specialty || !selectedDate || !selectedSlot) {
         return Response.json({ error: 'Campos obrigatórios ausentes' }, { status: 400, headers: cors })
       }
+
+      if (pixPayment && !s.pixKey) {
+        return Response.json({ error: 'Chave PIX não configurada.' }, { status: 400, headers: cors })
+      }
+
+      type SpecialtyRate = { specialty: string; rate: number | string }
+      const specialtyRatesList: SpecialtyRate[] = Array.isArray(s.specialtyRates) ? s.specialtyRates : []
+      const matchedPixRate = specialtyRatesList.find((r: SpecialtyRate) => r.specialty === specialty)
+      const baseHourlyRatePix = parseFloat(s.hourlyRate ?? '0')
+      const effectiveHourlyRate = matchedPixRate ? parseFloat(String(matchedPixRate.rate)) : baseHourlyRatePix
+      const amountBRL = effectiveHourlyRate > 0 ? (effectiveHourlyRate * (s.slotDuration ?? 60)) / 60 : 0
+      const pixAmountStr = amountBRL > 0 ? `R$ ${amountBRL.toFixed(2).replace('.', ',')}` : null
 
       const { data: existing } = await sb
         .from('Client')
@@ -475,6 +509,8 @@ Deno.serve(async (req) => {
         meetingLink = s.customMeetingUrl?.trim() || `https://meet.jit.si/agendaradv${apptId.replace(/-/g, '')}`
       }
 
+      const apptStatus = pixPayment ? 'PENDING_PAYMENT' : 'CONFIRMED'
+
       const { error: apptErr } = await sb
         .from('Appointment')
         .insert({
@@ -488,7 +524,7 @@ Deno.serve(async (req) => {
           description,
           date: apptDate,
           duration: s.slotDuration ?? 60,
-          status: 'CONFIRMED',
+          status: apptStatus,
           source: 'SCHEDULER',
           meetingLink,
           googleCalendarEventId,
@@ -510,25 +546,36 @@ Deno.serve(async (req) => {
           await sendEmail(
             RESEND_KEY, clientEmail,
             `Agendamento recebido — ${lawyer.name}`,
-            clientEmailHtml({ lawyerName: lawyer.name, dateStr, timeStr, specialty, address, meetingLink })
+            clientEmailHtml({
+              lawyerName: lawyer.name, dateStr, timeStr, specialty, address, meetingLink,
+              pixKey: pixPayment ? (s.pixKey ?? null) : null,
+              pixAmount: pixPayment ? pixAmountStr : null,
+            })
           )
           if (s.newBookingByEmail !== false && lawyer.email) {
             await sendEmail(
               RESEND_KEY, lawyer.email,
-              `Novo agendamento — ${clientName}`,
-              lawyerEmailHtml({ clientName, clientEmail, clientWhatsapp, dateStr, timeStr, specialty, description, meetingLink })
+              pixPayment ? `Novo agendamento (aguardando PIX) — ${clientName}` : `Novo agendamento — ${clientName}`,
+              lawyerEmailHtml({
+                clientName, clientEmail, clientWhatsapp, dateStr, timeStr, specialty, description, meetingLink,
+                pixAmount: pixPayment ? pixAmountStr : null,
+              })
             )
           }
           if (s.newBookingByWhatsapp && lawyer.whatsapp) {
+            const pixNote = pixPayment && pixAmountStr ? `\n💸 PIX pendente: ${pixAmountStr}` : ''
             await sendWhatsApp(
               lawyer.whatsapp,
-              `📅 Novo agendamento!\n\nCliente: ${clientName}\nData: ${dateStr}\nHorário: ${timeStr}\nÁrea: ${specialty}${clientWhatsapp ? `\nWhatsApp: ${clientWhatsapp}` : ''}`
+              `📅 Novo agendamento!\n\nCliente: ${clientName}\nData: ${dateStr}\nHorário: ${timeStr}\nÁrea: ${specialty}${clientWhatsapp ? `\nWhatsApp: ${clientWhatsapp}` : ''}${pixNote}`
             )
           }
           if (clientWhatsapp) {
+            const pixWaNote = pixPayment && s.pixKey
+              ? `\n\n💸 Para confirmar, realize o PIX:\nChave: ${s.pixKey}${pixAmountStr ? `\nValor: ${pixAmountStr}` : ''}`
+              : ''
             await sendWhatsApp(
               clientWhatsapp,
-              `✅ Agendamento confirmado!\n\nOlá, ${clientName}! Sua consulta foi agendada com sucesso.\n\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}\n⚖️ Área: ${specialty}${meetingLink ? `\n🔗 Reunião: ${meetingLink}` : address ? `\n📍 Local: ${address}` : ''}\n\n${lawyer.name}`
+              `${pixPayment ? '⏳' : '✅'} Agendamento ${pixPayment ? 'recebido!' : 'confirmado!'}\n\nOlá, ${clientName}! Sua consulta foi ${pixPayment ? 'recebida e aguarda confirmação de pagamento' : 'agendada com sucesso'}.\n\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}\n⚖️ Área: ${specialty}${meetingLink ? `\n🔗 Reunião: ${meetingLink}` : address ? `\n📍 Local: ${address}` : ''}${pixWaNote}\n\n${lawyer.name}`
             )
           }
         } catch (_) {}

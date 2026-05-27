@@ -918,11 +918,28 @@ function CalendarSection({ data, onSaved }) {
   )
 }
 
-function FinancialSection({ data, banner }) {
+function FinancialSection({ data, banner, onSaved }) {
   const f = data.financial || {}
   const [onboarding, setOnboarding] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [error, setError] = useState('')
+  const [pixKey, setPixKey] = useState(f.pixKey ?? '')
+  const [pixSaving, setPixSaving] = useState(false)
+  const [pixSaved, setPixSaved] = useState(false)
+  const [pixError, setPixError] = useState('')
+
+  const handleSavePix = async () => {
+    setPixSaving(true); setPixSaved(false); setPixError('')
+    try {
+      await api.put('/settings/financial', { pixKey })
+      setPixSaved(true)
+      onSaved?.()
+      setTimeout(() => setPixSaved(false), 3000)
+    } catch (err) {
+      setPixError(errMsg(err))
+    }
+    setPixSaving(false)
+  }
 
   const startOnboarding = async () => {
     setOnboarding(true); setError('')
@@ -1032,6 +1049,34 @@ function FinancialSection({ data, banner }) {
             {disconnecting ? 'Removendo...' : 'Remover conta Stripe vinculada'}
           </button>
         )}
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <div>
+          <h3 className="font-bold text-navy-900 text-lg">Chave PIX</h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Alternativa ao Stripe. Ao configurar uma chave PIX, seus clientes verão a chave no momento do agendamento e realizarão o pagamento diretamente para você.
+            Você confirma o recebimento no painel de Compromissos.
+          </p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Chave PIX</label>
+          <input
+            value={pixKey}
+            onChange={e => { setPixKey(e.target.value); setPixSaved(false) }}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+            placeholder="CPF, CNPJ, email, telefone ou chave aleatória"
+          />
+        </div>
+        {pixError && <p className="text-red-500 text-sm">{pixError}</p>}
+        {pixSaved && <p className="text-green-600 text-sm font-medium">✓ Chave PIX salva</p>}
+        <button
+          type="button"
+          onClick={handleSavePix}
+          disabled={pixSaving}
+          className="w-full py-3 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors disabled:opacity-50">
+          {pixSaving ? 'Salvando...' : 'Salvar chave PIX'}
+        </button>
       </div>
     </div>
   )
@@ -1190,7 +1235,7 @@ export default function Settings() {
       {activeTab === 'profile'   && <ProfileSection    data={settingsData} onSaved={load} />}
       {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} banner={calendarBanner} onGoToGoogle={() => setActiveTab('google')} />}
       {activeTab === 'calendar'  && <CalendarSection   data={settingsData} onSaved={load} />}
-      {activeTab === 'financial' && <FinancialSection  data={settingsData} banner={stripeBanner} />}
+      {activeTab === 'financial' && <FinancialSection  data={settingsData} banner={stripeBanner} onSaved={load} />}
       {activeTab === 'alerts'    && <AlertsSection     data={settingsData} onSaved={load} />}
     </div>
   )
