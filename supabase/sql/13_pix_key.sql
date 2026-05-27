@@ -1,0 +1,2 @@
+ALTER TABLE "LawyerSettings"
+  ADD COLUMN IF NOT EXISTS "pixKey" TEXT;

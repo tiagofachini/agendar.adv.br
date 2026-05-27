@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
             stripeAccountId: l?.stripeAccountId ?? null,
             stripeOnboardingComplete: l?.stripeOnboardingComplete ?? false,
             stripeChargesEnabled: l?.stripeChargesEnabled ?? false,
+            pixKey: s?.pixKey ?? '',
           },
           alerts: {
             newBookingByEmail: s?.newBookingByEmail ?? true,
@@ -143,6 +144,13 @@ Deno.serve(async (req) => {
       if (section === 'alerts') {
         const body = await req.json()
         const error = await upsertSettings(body)
+        if (error) throw error
+        return Response.json({ ok: true }, { headers: cors })
+      }
+
+      if (section === 'financial') {
+        const { pixKey } = await req.json()
+        const error = await upsertSettings({ pixKey: pixKey?.trim() || null })
         if (error) throw error
         return Response.json({ ok: true }, { headers: cors })
       }
