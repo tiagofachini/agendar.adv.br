@@ -290,7 +290,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
 }
 
 // ── View Lista ────────────────────────────────────────────────────────────────
-function ListView({ appointments, onAppointmentClick, selected, onToggle }) {
+function ListView({ appointments, onAppointmentClick, selected, onToggle, onConfirmPix }) {
   if (!appointments.length) return (
     <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
       <div className="text-5xl mb-3">📅</div>
@@ -303,6 +303,7 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle }) {
       {appointments.map((a) => {
         const s = getStyle(a)
         const isChecked = selected.has(a.id)
+        const showPixConfirm = a.source === 'SCHEDULER' && a.status === 'PENDING_PAYMENT'
         return (
           <div key={a.id}
             className="flex items-center gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer last:border-0"
@@ -322,7 +323,15 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle }) {
                 {a.attendanceNotes && <span className="ml-2 text-xs text-gray-400">· 📝</span>}
               </p>
             </div>
-            <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${s.badge}`}>{s.label}</span>
+            {showPixConfirm ? (
+              <button
+                onClick={e => { e.stopPropagation(); onConfirmPix(a.id) }}
+                className="text-xs px-2.5 py-1.5 rounded-full font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors flex-shrink-0 whitespace-nowrap">
+                ✓ PIX recebido
+              </button>
+            ) : (
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium flex-shrink-0 ${s.badge}`}>{s.label}</span>
+            )}
           </div>
         )
       })}
@@ -415,6 +424,13 @@ export default function Appointments() {
     setModal(null)
   }
 
+  const confirmPix = async (id) => {
+    try {
+      await api.put(`/appointments/${id}`, { status: 'CONFIRMED' })
+      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CONFIRMED' } : a))
+    } catch { /* noop */ }
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -482,6 +498,7 @@ export default function Appointments() {
           onAppointmentClick={(a) => setModal({ mode: 'edit', appointment: a })}
           selected={selected}
           onToggle={toggleSelect}
+          onConfirmPix={confirmPix}
         />
       )}
 
