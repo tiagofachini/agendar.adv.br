@@ -261,7 +261,7 @@ async function handleCheckout(req: Request): Promise<Response> {
   const paymentIntent = await st.paymentIntents.create({
     amount: amountCents,
     currency: 'brl',
-    payment_method_types: ['card'],
+    automatic_payment_methods: { enabled: true },
     application_fee_amount: platformFeeCents,
     transfer_data: { destination: lawyer.stripeAccountId },
     metadata: { appointmentId: apptId, lawyerId: lawyer.id, slug },
@@ -276,7 +276,13 @@ async function handleCheckout(req: Request): Promise<Response> {
   })
 
   return Response.json(
-    { clientSecret: paymentIntent.client_secret, appointmentId: apptId, amount: amountBRL, meetingLink },
+    {
+      clientSecret: paymentIntent.client_secret,
+      publishableKey: Deno.env.get('STRIPE_PUBLISHABLE_KEY') ?? '',
+      appointmentId: apptId,
+      amount: amountBRL,
+      meetingLink,
+    },
     { status: 201, headers: cors }
   )
 }

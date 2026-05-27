@@ -9,8 +9,6 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { publicApi } from '../lib/api'
 
-const STRIPE_PK = 'pk_test_51TW3uDLBWejVmCs0Qzc7sr8lJubkvwUepiMVnkRAncmp1MurhvMugJzCayPvpLRjup7MkLE2MnHNN2zFN5sdcyzG00XsYGrusQ'
-const stripePromise = loadStripe(STRIPE_PK)
 
 const STEPS = ['Horário', 'Seus dados', 'Seu problema', 'Pagamento', 'Confirmação']
 
@@ -172,6 +170,7 @@ export default function Scheduler() {
   const [micError, setMicError] = useState('')
   const [detectingSpecialty, setDetectingSpecialty] = useState(false)
   const [clientSecret, setClientSecret] = useState(null)
+  const [stripePromise, setStripePromise] = useState(null)
   const [pendingAppt, setPendingAppt] = useState(null)
   const [creatingIntent, setCreatingIntent] = useState(false)
   const recognitionRef = useRef(null)
@@ -337,6 +336,7 @@ export default function Scheduler() {
         selectedSlot,
       })
       setClientSecret(data.clientSecret)
+      setStripePromise(loadStripe(data.publishableKey))
       setPendingAppt({ appointmentId: data.appointmentId, amount: data.amount, meetingLink: data.meetingLink })
       setForm(f => ({ ...f, specialty }))
       setStep(3)
@@ -624,7 +624,7 @@ export default function Scheduler() {
                 brand1={brand1}
               />
             </Elements>
-            <button onClick={() => { setStep(2); setClientSecret(null); setPendingAppt(null) }}
+            <button onClick={() => { setStep(2); setClientSecret(null); setStripePromise(null); setPendingAppt(null) }}
               className="mt-4 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-medium text-sm">
               ← Voltar
             </button>
