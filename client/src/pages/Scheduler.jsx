@@ -167,6 +167,7 @@ export default function Scheduler() {
   const [error, setError] = useState('')
   const [specialtyManual, setSpecialtyManual] = useState(false)
   const [isListening, setIsListening] = useState(false)
+  const [interimText, setInterimText] = useState('')
   const [micError, setMicError] = useState('')
   const [detectingSpecialty, setDetectingSpecialty] = useState(false)
   const [clientSecret, setClientSecret] = useState(null)
@@ -174,6 +175,7 @@ export default function Scheduler() {
   const [pendingAppt, setPendingAppt] = useState(null)
   const [creatingIntent, setCreatingIntent] = useState(false)
   const recognitionRef = useRef(null)
+  const baseDescRef = useRef('')
 
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientWhatsapp: '',
@@ -230,12 +232,14 @@ export default function Scheduler() {
     if (isListening) {
       try { recognitionRef.current?.stop() } catch {}
       setIsListening(false)
+      setInterimText('')
       return
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) return
 
     setMicError('')
+    baseDescRef.current = form.description
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -248,17 +252,26 @@ export default function Scheduler() {
     const recognition = new SR()
     recognition.lang = 'pt-BR'
     recognition.continuous = true
-    recognition.interimResults = false
+    recognition.interimResults = true
     recognitionRef.current = recognition
 
     recognition.onresult = (e) => {
-      const transcript = Array.from(e.results)
-        .map(r => r[0].transcript).join(' ')
-      setForm(f => ({ ...f, description: f.description ? f.description + ' ' + transcript : transcript }))
+      let final = ''
+      let interim = ''
+      for (const result of Array.from(e.results)) {
+        if (result.isFinal) final += result[0].transcript + ' '
+        else interim += result[0].transcript
+      }
+      if (final.trim()) {
+        const base = baseDescRef.current
+        setForm(f => ({ ...f, description: base + (base && final.trim() ? ' ' : '') + final.trim() }))
+      }
+      setInterimText(interim)
     }
-    recognition.onend = () => setIsListening(false)
+    recognition.onend = () => { setIsListening(false); setInterimText('') }
     recognition.onerror = (e) => {
       setIsListening(false)
+      setInterimText('')
       const msgs = {
         'not-allowed':  'Permissão de microfone negada. Habilite nas configurações do navegador.',
         'no-speech':    'Nenhuma fala detectada. Tente novamente.',
@@ -568,6 +581,9 @@ export default function Scheduler() {
             <textarea name="description" value={form.description} onChange={updateForm} rows={5}
               className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700 resize-none"
               placeholder="Ex: Fui demitido sem justa causa e não recebi todas as verbas rescisórias. Trabalhei 3 anos na empresa..." />
+            {isListening && interimText && (
+              <p className="mt-1 px-1 text-xs text-gray-400 italic">{interimText}…</p>
+            )}
 
             {detectingSpecialty && (
               <p className="mt-2 text-xs text-gray-400 animate-pulse">Identificando área jurídica...</p>
