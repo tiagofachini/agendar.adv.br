@@ -526,11 +526,11 @@ export default function Scheduler() {
         </div>
 
         {/* Content */}
-        <div className="px-4 py-6 md:p-8 md:pt-6 flex flex-col items-center">
+        <div className="px-4 py-6 md:p-8 md:pt-6">
 
           {/* Step 0 — blocked */}
           {step === 0 && monthBlocked && (
-            <div className="max-w-md md:max-w-lg w-full bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+            <div className="max-w-md md:max-w-lg mx-auto bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
               <div className="text-4xl mb-3">📅</div>
               <h2 className="font-bold text-amber-900 text-lg mb-2">Agenda temporariamente indisponível</h2>
               <p className="text-amber-800 text-sm leading-relaxed">
@@ -544,7 +544,7 @@ export default function Scheduler() {
           {step === 0 && !monthBlocked && (
             <>
               {/* Mobile layout */}
-              <div className="md:hidden w-full space-y-4">
+              <div className="md:hidden space-y-4">
                 <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
                   <p className="font-semibold text-navy-900 mb-2">Como funciona?</p>
                   <ol className="space-y-1.5 text-sm text-gray-600">
@@ -610,7 +610,7 @@ export default function Scheduler() {
               </div>
 
               {/* Desktop layout: calendar + slots side by side */}
-              <div className="hidden md:flex gap-5 items-start w-full max-w-2xl">
+              <div className="hidden md:flex gap-5 items-start mx-auto w-full max-w-2xl">
                 <div className="bg-white rounded-2xl shadow-sm p-6 flex-1 max-w-sm">
                   <h2 className="font-bold text-gray-900 mb-5 text-lg">Selecione uma data</h2>
                   <Calendar workDays={info.workDays} selectedDate={selectedDate} onSelect={handleDateSelect}
@@ -666,7 +666,7 @@ export default function Scheduler() {
           )}
 
           {step === 1 && (
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-6">
+            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
               <h2 className="font-bold text-navy-900 mb-1 text-lg">Seus dados</h2>
               <p className="text-sm text-gray-500 mb-5">
                 {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot}
@@ -704,7 +704,7 @@ export default function Scheduler() {
           )}
 
           {step === 2 && (
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-6">
+            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
               <h2 className="font-bold text-navy-900 mb-1 text-lg">Descreva seu caso</h2>
               <p className="text-sm text-gray-500 mb-5">
                 Uma descrição breve ajuda o advogado a se preparar. A área do direito será identificada automaticamente.
@@ -756,7 +756,7 @@ export default function Scheduler() {
           )}
 
           {step === 3 && showPaymentStep && clientSecret && (
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-6">
+            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
               <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
               {consultaValor && (
                 <p className="text-sm text-gray-500 mb-5">
@@ -779,7 +779,7 @@ export default function Scheduler() {
           )}
 
           {step === 3 && showPixStep && (
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-6">
+            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
               <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento via PIX</h2>
               <p className="text-sm text-gray-500 mb-5">
                 {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
@@ -821,7 +821,7 @@ export default function Scheduler() {
           )}
 
           {step === 3 && !showPaymentStep && !showPixStep && (
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-6">
+            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
               <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
               <p className="text-sm text-gray-500 mb-5">
                 {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
@@ -856,7 +856,7 @@ export default function Scheduler() {
           )}
 
           {step === 4 && result && (
-            <div className="max-w-md w-full space-y-4">
+            <div className="max-w-md mx-auto space-y-4">
               <div className="bg-white rounded-2xl shadow-sm p-8">
                 <div className="text-center mb-5">
                   <div className="text-5xl mb-3">{result.paid ? '✅' : result.pixPending ? '⏳' : '✅'}</div>
