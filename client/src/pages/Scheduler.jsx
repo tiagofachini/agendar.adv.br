@@ -411,480 +411,596 @@ export default function Scheduler() {
   const confirmationSpecialty = result?.specialty || form.specialty || 'Consultoria Jurídica Geral'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 md:flex">
 
-      <div className="px-6 py-8 text-center" style={{ backgroundColor: brand1 }}>
-        {info.logoUrl && (
-          <img src={info.logoUrl} alt="logo" className="h-16 w-16 mx-auto mb-4 rounded-full object-cover bg-white p-1 shadow-md ring-2 ring-white/20" />
-        )}
-        <h1 className="text-white text-2xl font-bold">{info.lawyerName}</h1>
+      {/* Desktop sidebar */}
+      <div className="hidden md:flex flex-col w-72 flex-shrink-0 bg-white border-r border-gray-100 min-h-screen">
+        <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: brand1 }} />
+        <div className="flex-1 p-7 flex flex-col">
+          {info.logoUrl ? (
+            <img src={info.logoUrl} alt="logo"
+              className="h-16 w-16 mb-5 rounded-full object-cover shadow-md ring-2 ring-gray-100" />
+          ) : (
+            <div className="h-14 w-14 mb-5 rounded-full flex items-center justify-center text-white text-2xl font-bold flex-shrink-0"
+              style={{ backgroundColor: brand1 }}>
+              {info.lawyerName?.[0]?.toUpperCase()}
+            </div>
+          )}
 
-        {info.specialties?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 justify-center mt-3">
-            {info.specialties.slice(0, 4).map(s => (
-              <span key={s} className="bg-white/10 text-white/90 text-xs px-2.5 py-1 rounded-full">{s}</span>
-            ))}
-            {info.specialties.length > 4 && (
-              <span className="bg-white/10 text-white/90 text-xs px-2.5 py-1 rounded-full">
-                +{info.specialties.length - 4} áreas
-              </span>
+          <h1 className="font-bold text-xl text-gray-900 leading-tight mb-2">{info.lawyerName}</h1>
+
+          <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-1">
+            <span>🕐</span>
+            <span>{info.slotDuration ?? 60} min</span>
+            {consultaValor && (
+              <>
+                <span className="text-gray-300">·</span>
+                <span className="font-semibold" style={{ color: brand1 }}>{consultaValor}</span>
+              </>
             )}
           </div>
-        )}
 
-        {addressParts.length > 0 && (
-          <p className="text-gray-300 text-sm mt-2">📍 {address}</p>
-        )}
+          <div className="my-5 border-t border-gray-100" />
 
-        {info.highlightMessage && (
-          <p className="text-brand-400 text-sm mt-2 max-w-xs mx-auto">{info.highlightMessage}</p>
-        )}
-        {consultaValor && (
-          <p className="text-gray-300 text-sm mt-1">
-            Consulta de {info.slotDuration} min — {consultaValor}
-          </p>
-        )}
-      </div>
-
-      <div className="bg-white border-b px-4 py-3 overflow-x-auto">
-        <div className="flex items-center justify-center gap-0 min-w-max mx-auto">
-          {STEPS.map((label, i) => (
-            <div key={label} className="flex items-center">
-              <div className={`flex items-center gap-1.5 ${i <= step ? '' : 'text-gray-300'}`}
-                style={i <= step ? { color: brand1 } : {}}>
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={
-                    i < step ? { backgroundColor: brand1, color: '#fff', border: 'none' }
-                    : i === step ? { border: `2px solid ${brand1}`, color: brand1 }
-                    : { border: '2px solid #e5e7eb', color: '#d1d5db' }
-                  }>
-                  {i < step ? '✓' : i + 1}
-                </div>
-                <span className="text-xs font-medium hidden sm:block whitespace-nowrap">{label}</span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className="w-6 h-0.5 mx-1.5"
-                  style={{ backgroundColor: i < step ? brand1 : '#e5e7eb' }} />
-              )}
+          {info.specialties?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {info.specialties.slice(0, 6).map(s => (
+                <span key={s} className="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-700">
+                  {s}
+                </span>
+              ))}
             </div>
-          ))}
+          )}
+
+          {address && (
+            <p className="text-sm text-gray-500 mb-3">📍 {address}</p>
+          )}
+
+          {info.highlightMessage && (
+            <p className="text-sm text-gray-600 leading-relaxed">{info.highlightMessage}</p>
+          )}
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-6">
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-h-screen">
 
-        {step === 0 && monthBlocked && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
-            <div className="text-4xl mb-3">📅</div>
-            <h2 className="font-bold text-amber-900 text-lg mb-2">Agenda temporariamente indisponível</h2>
-            <p className="text-amber-800 text-sm leading-relaxed">
-              Este advogado atingiu o limite de consultas disponíveis para este mês.
-              Entre em contato diretamente para verificar disponibilidade.
-            </p>
-          </div>
-        )}
+        {/* Mobile header */}
+        <div className="md:hidden px-6 py-8 text-center" style={{ backgroundColor: brand1 }}>
+          {info.logoUrl && (
+            <img src={info.logoUrl} alt="logo" className="h-16 w-16 mx-auto mb-4 rounded-full object-cover bg-white p-1 shadow-md ring-2 ring-white/20" />
+          )}
+          <h1 className="text-white text-2xl font-bold">{info.lawyerName}</h1>
 
-        {step === 0 && !monthBlocked && (
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-              <p className="font-semibold text-navy-900 mb-2">Como funciona?</p>
-              <ol className="space-y-1.5 text-sm text-gray-600">
-                <li className="flex gap-2"><span className="font-bold text-navy-900">1.</span> Escolha o dia e horário disponível</li>
-                <li className="flex gap-2"><span className="font-bold text-navy-900">2.</span> Informe seus dados de contato</li>
-                <li className="flex gap-2"><span className="font-bold text-navy-900">3.</span> Descreva brevemente o seu caso</li>
-                <li className="flex gap-2">
-                  <span className="font-bold text-navy-900">4.</span>
-                  {showPaymentStep
-                    ? `Finalize o pagamento de ${consultaValor} para garantir o horário`
-                    : showPixStep
-                      ? `Realize o PIX de ${consultaValor} para confirmar o horário`
-                      : 'Confirme o agendamento (pagamento acordado com o advogado)'}
-                </li>
-                <li className="flex gap-2"><span className="font-bold text-navy-900">5.</span> Receba a confirmação com todos os detalhes</li>
-              </ol>
-              {showPaymentStep && (
-                <p className="mt-3 text-xs text-blue-700 font-medium">
-                  O pagamento é processado com segurança via Stripe. Aceitamos cartão de crédito e débito.
-                </p>
-              )}
-              {showPixStep && (
-                <p className="mt-3 text-xs text-amber-700 font-medium">
-                  Pagamento via PIX direto para o advogado. O horário é confirmado após a verificação do pagamento.
-                </p>
+          {info.specialties?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 justify-center mt-3">
+              {info.specialties.slice(0, 4).map(s => (
+                <span key={s} className="bg-white/10 text-white/90 text-xs px-2.5 py-1 rounded-full">{s}</span>
+              ))}
+              {info.specialties.length > 4 && (
+                <span className="bg-white/10 text-white/90 text-xs px-2.5 py-1 rounded-full">
+                  +{info.specialties.length - 4} áreas
+                </span>
               )}
             </div>
+          )}
 
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="font-bold text-navy-900 mb-5 text-lg">Escolha a data e o horário</h2>
-              <Calendar workDays={info.workDays} selectedDate={selectedDate} onSelect={handleDateSelect}
-                currentMonth={currentMonth} onMonthChange={setCurrentMonth} brand1={brand1} brand2={brand2} />
-              {selectedDate && (
-                <div className="mt-6">
-                  <p className="text-sm font-medium text-gray-700 mb-3">
-                    Horários disponíveis — {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
-                  </p>
-                  {loadingSlots ? (
-                    <div className="text-center text-sm text-gray-400 py-4">Carregando horários...</div>
-                  ) : slots.length === 0 ? (
-                    <div className="text-center text-sm text-gray-400 py-4">Nenhum horário disponível nesta data.</div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2">
-                      {slots.map((slot) => (
-                        <button key={slot} onClick={() => setSelectedSlot(slot)}
-                          className="py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors"
-                          style={selectedSlot === slot
-                            ? { backgroundColor: brand1, borderColor: brand1, color: '#fff' }
-                            : {}}>
-                          {slot}
+          {addressParts.length > 0 && (
+            <p className="text-gray-300 text-sm mt-2">📍 {address}</p>
+          )}
+
+          {info.highlightMessage && (
+            <p className="text-brand-400 text-sm mt-2 max-w-xs mx-auto">{info.highlightMessage}</p>
+          )}
+          {consultaValor && (
+            <p className="text-gray-300 text-sm mt-1">
+              Consulta de {info.slotDuration} min — {consultaValor}
+            </p>
+          )}
+        </div>
+
+        {/* Step indicator */}
+        <div className="bg-white border-b px-4 py-3 overflow-x-auto">
+          <div className="flex items-center justify-center gap-0 min-w-max mx-auto">
+            {STEPS.map((label, i) => (
+              <div key={label} className="flex items-center">
+                <div className={`flex items-center gap-1.5 ${i <= step ? '' : 'text-gray-300'}`}
+                  style={i <= step ? { color: brand1 } : {}}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    style={
+                      i < step ? { backgroundColor: brand1, color: '#fff', border: 'none' }
+                      : i === step ? { border: `2px solid ${brand1}`, color: brand1 }
+                      : { border: '2px solid #e5e7eb', color: '#d1d5db' }
+                    }>
+                    {i < step ? '✓' : i + 1}
+                  </div>
+                  <span className="text-xs font-medium hidden sm:block whitespace-nowrap">{label}</span>
+                </div>
+                {i < STEPS.length - 1 && (
+                  <div className="w-6 h-0.5 mx-1.5"
+                    style={{ backgroundColor: i < step ? brand1 : '#e5e7eb' }} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-4 py-6 md:p-8 md:pt-6">
+
+          {/* Step 0 — blocked */}
+          {step === 0 && monthBlocked && (
+            <div className="max-w-md md:max-w-lg bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+              <div className="text-4xl mb-3">📅</div>
+              <h2 className="font-bold text-amber-900 text-lg mb-2">Agenda temporariamente indisponível</h2>
+              <p className="text-amber-800 text-sm leading-relaxed">
+                Este advogado atingiu o limite de consultas disponíveis para este mês.
+                Entre em contato diretamente para verificar disponibilidade.
+              </p>
+            </div>
+          )}
+
+          {/* Step 0 — available */}
+          {step === 0 && !monthBlocked && (
+            <>
+              {/* Mobile layout */}
+              <div className="md:hidden space-y-4">
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+                  <p className="font-semibold text-navy-900 mb-2">Como funciona?</p>
+                  <ol className="space-y-1.5 text-sm text-gray-600">
+                    <li className="flex gap-2"><span className="font-bold text-navy-900">1.</span> Escolha o dia e horário disponível</li>
+                    <li className="flex gap-2"><span className="font-bold text-navy-900">2.</span> Informe seus dados de contato</li>
+                    <li className="flex gap-2"><span className="font-bold text-navy-900">3.</span> Descreva brevemente o seu caso</li>
+                    <li className="flex gap-2">
+                      <span className="font-bold text-navy-900">4.</span>
+                      {showPaymentStep
+                        ? `Finalize o pagamento de ${consultaValor} para garantir o horário`
+                        : showPixStep
+                          ? `Realize o PIX de ${consultaValor} para confirmar o horário`
+                          : 'Confirme o agendamento (pagamento acordado com o advogado)'}
+                    </li>
+                    <li className="flex gap-2"><span className="font-bold text-navy-900">5.</span> Receba a confirmação com todos os detalhes</li>
+                  </ol>
+                  {showPaymentStep && (
+                    <p className="mt-3 text-xs text-blue-700 font-medium">
+                      O pagamento é processado com segurança via Stripe. Aceitamos cartão de crédito e débito.
+                    </p>
+                  )}
+                  {showPixStep && (
+                    <p className="mt-3 text-xs text-amber-700 font-medium">
+                      Pagamento via PIX direto para o advogado. O horário é confirmado após a verificação do pagamento.
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm p-6">
+                  <h2 className="font-bold text-navy-900 mb-5 text-lg">Escolha a data e o horário</h2>
+                  <Calendar workDays={info.workDays} selectedDate={selectedDate} onSelect={handleDateSelect}
+                    currentMonth={currentMonth} onMonthChange={setCurrentMonth} brand1={brand1} brand2={brand2} />
+                  {selectedDate && (
+                    <div className="mt-6">
+                      <p className="text-sm font-medium text-gray-700 mb-3">
+                        Horários disponíveis — {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+                      </p>
+                      {loadingSlots ? (
+                        <div className="text-center text-sm text-gray-400 py-4">Carregando horários...</div>
+                      ) : slots.length === 0 ? (
+                        <div className="text-center text-sm text-gray-400 py-4">Nenhum horário disponível nesta data.</div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {slots.map((slot) => (
+                            <button key={slot} onClick={() => setSelectedSlot(slot)}
+                              className="py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors"
+                              style={selectedSlot === slot
+                                ? { backgroundColor: brand1, borderColor: brand1, color: '#fff' }
+                                : {}}>
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <button disabled={!selectedDate || !selectedSlot} onClick={() => setStep(1)}
+                    className="mt-6 w-full py-3.5 rounded-xl text-white font-bold disabled:opacity-40 transition-colors"
+                    style={{ backgroundColor: brand1 }}>
+                    Continuar →
+                  </button>
+                </div>
+              </div>
+
+              {/* Desktop layout: calendar + slots side by side */}
+              <div className="hidden md:flex gap-5 items-start">
+                <div className="bg-white rounded-2xl shadow-sm p-6 flex-1 max-w-sm">
+                  <h2 className="font-bold text-gray-900 mb-5 text-lg">Selecione uma data</h2>
+                  <Calendar workDays={info.workDays} selectedDate={selectedDate} onSelect={handleDateSelect}
+                    currentMonth={currentMonth} onMonthChange={setCurrentMonth} brand1={brand1} brand2={brand2} />
+                </div>
+
+                <div className="w-60 bg-white rounded-2xl shadow-sm p-6 flex-shrink-0 min-h-80 flex flex-col">
+                  {selectedDate ? (
+                    <>
+                      <p className="font-semibold text-gray-900 capitalize">
+                        {format(selectedDate, 'EEEE', { locale: ptBR })}
+                      </p>
+                      <p className="text-xs text-gray-400 mb-4">
+                        {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
+                      </p>
+                      {loadingSlots ? (
+                        <div className="text-center text-sm text-gray-400 py-4">Carregando...</div>
+                      ) : slots.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center">
+                          <p className="text-gray-400 text-sm text-center">Nenhum horário disponível nesta data.</p>
+                        </div>
+                      ) : (
+                        <div className="flex-1 overflow-y-auto space-y-2 max-h-72">
+                          {slots.map((slot) => (
+                            <button key={slot} onClick={() => setSelectedSlot(slot)}
+                              className="w-full py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors"
+                              style={selectedSlot === slot
+                                ? { backgroundColor: brand1, borderColor: brand1, color: '#fff' }
+                                : { borderColor: '#e5e7eb', color: '#374151' }}>
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {selectedSlot && (
+                        <button onClick={() => setStep(1)}
+                          className="mt-4 w-full py-3 rounded-xl text-white font-bold transition-colors"
+                          style={{ backgroundColor: brand1 }}>
+                          Continuar →
                         </button>
-                      ))}
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="text-gray-400 text-sm text-center leading-relaxed">
+                        Selecione uma data para ver os horários disponíveis
+                      </p>
                     </div>
                   )}
                 </div>
-              )}
-              <button disabled={!selectedDate || !selectedSlot} onClick={() => setStep(1)}
-                className="mt-6 w-full py-3.5 rounded-xl text-white font-bold disabled:opacity-40 transition-colors"
-                style={{ backgroundColor: brand1 }}>
-                Continuar →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 1 && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-navy-900 mb-1 text-lg">Seus dados</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot}
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
-                <input name="clientName" value={form.clientName} onChange={updateForm} required
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                  placeholder="Seu nome completo" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input name="clientEmail" type="email" value={form.clientEmail} onChange={updateForm} required
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                  placeholder="seu@email.com" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
-                <input name="clientWhatsapp" value={form.clientWhatsapp}
-                  onChange={e => setForm(f => ({ ...f, clientWhatsapp: maskPhone(e.target.value) }))}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                  placeholder="(11) 99999-9999" />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setStep(0)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-              <button disabled={!form.clientName || !form.clientEmail} onClick={() => setStep(2)}
-                className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-40 transition-colors"
-                style={{ backgroundColor: brand1 }}>
-                Continuar →
-              </button>
-            </div>
-          </div>
-        )}
+            </>
+          )}
 
-        {step === 2 && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-navy-900 mb-1 text-lg">Descreva seu caso</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              Uma descrição breve ajuda o advogado a se preparar. A área do direito será identificada automaticamente.
-            </p>
-            <textarea name="description" value={form.description} onChange={updateForm} rows={5}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700 resize-none"
-              placeholder="Ex: Fui demitido sem justa causa e não recebi todas as verbas rescisórias. Trabalhei 3 anos na empresa..." />
-            {isListening && interimText && (
-              <p className="mt-1 px-1 text-xs text-gray-400 italic">{interimText}…</p>
-            )}
-
-            {detectingSpecialty && (
-              <p className="mt-2 text-xs text-gray-400 animate-pulse">Identificando área jurídica...</p>
-            )}
-            {!detectingSpecialty && form.specialty && !specialtyManual && (
-              <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                <span>Área: <span className="font-semibold text-navy-700">{form.specialty}</span></span>
-                <button type="button" onClick={() => setSpecialtyManual(true)}
-                  className="underline hover:text-navy-900 transition-colors">alterar</button>
-              </div>
-            )}
-            {specialtyManual && (
-              <input value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
-                className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-                placeholder="Área do direito..." />
-            )}
-
-            {hasSpeechAPI && (
-              <button type="button" onClick={startListening}
-                className={`mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border-2 transition-colors
-                  ${isListening ? 'border-red-400 text-red-500 bg-red-50 animate-pulse' : 'border-gray-200 text-gray-600 hover:border-navy-900'}`}>
-                <span>{isListening ? '⏹ Parar gravação' : '🎤 Falar o problema'}</span>
-              </button>
-            )}
-            {micError && <p className="mt-2 text-xs text-red-500">{micError}</p>}
-
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-              <button
-                onClick={showPaymentStep ? handleGoToPayment : () => setStep(3)}
-                disabled={creatingIntent || detectingSpecialty || !form.description}
-                className="flex-1 py-3 rounded-xl font-bold disabled:opacity-50 transition-colors"
-                style={{ backgroundColor: brand2, color: brand1 }}>
-                {creatingIntent ? 'Aguarde...' : showPaymentStep ? 'Ir para pagamento →' : 'Continuar →'}
-              </button>
-            </div>
-            {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
-          </div>
-        )}
-
-        {step === 3 && showPaymentStep && clientSecret && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
-            {consultaValor && (
+          {step === 1 && (
+            <div className="max-w-md bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="font-bold text-navy-900 mb-1 text-lg">Seus dados</h2>
               <p className="text-sm text-gray-500 mb-5">
-                Valor da consulta: <span className="font-semibold text-navy-900">{consultaValor}</span>
+                {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot}
               </p>
-            )}
-            <Elements stripe={stripePromise} options={{ clientSecret, locale: 'pt-BR' }}>
-              <StripePaymentForm
-                onSuccess={handlePaymentSuccess}
-                onError={setError}
-                consultaValor={consultaValor}
-                brand1={brand1}
-              />
-            </Elements>
-            <button onClick={() => { setStep(2); setClientSecret(null); setStripePromise(null); setPendingAppt(null) }}
-              className="mt-4 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-medium text-sm">
-              ← Voltar
-            </button>
-          </div>
-        )}
-
-        {step === 3 && showPixStep && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento via PIX</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
-            </p>
-
-            {consultaValor && (
-              <div className="bg-gray-50 rounded-xl p-4 mb-4 flex items-center justify-between">
-                <span className="text-sm text-gray-600">Valor da consulta</span>
-                <span className="text-xl font-bold text-navy-900">{consultaValor}</span>
-              </div>
-            )}
-
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-5 space-y-3">
-              <p className="text-amber-800 text-sm font-semibold">Chave PIX para pagamento:</p>
-              <div className="bg-white border border-amber-200 rounded-lg px-4 py-3 text-center">
-                <p className="font-mono font-bold text-navy-900 text-base break-all select-all">{info.pixKey}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(info.pixKey)}
-                className="w-full py-2 rounded-lg border border-amber-300 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors">
-                Copiar chave PIX
-              </button>
-              <p className="text-amber-700 text-xs">
-                Após realizar o PIX, clique em "Confirmar agendamento". O advogado verificará o recebimento e confirmará seu horário.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-              <button onClick={handlePixBook} disabled={booking}
-                className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
-                style={{ backgroundColor: brand1 }}>
-                {booking ? 'Aguarde...' : 'Confirmar agendamento →'}
-              </button>
-            </div>
-            {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
-          </div>
-        )}
-
-        {step === 3 && !showPaymentStep && !showPixStep && (
-          <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
-            <p className="text-sm text-gray-500 mb-5">
-              {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
-            </p>
-
-            {consultaValor && (
-              <div className="bg-gray-50 rounded-xl p-4 mb-4 flex items-center justify-between">
-                <span className="text-sm text-gray-600">Valor estimado da consulta</span>
-                <span className="text-xl font-bold text-navy-900">{consultaValor}</span>
-              </div>
-            )}
-
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6">
-              <p className="text-amber-800 text-sm font-medium">
-                💬 O advogado realizará a cobrança diretamente após a consulta.
-              </p>
-              <p className="text-amber-700 text-xs mt-1">
-                Você receberá um email com os detalhes do agendamento.
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-              <button onClick={handleFreeBook} disabled={booking}
-                className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
-                style={{ backgroundColor: brand1 }}>
-                {booking ? 'Aguarde...' : 'Confirmar →'}
-              </button>
-            </div>
-            {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
-          </div>
-        )}
-
-        {step === 4 && result && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl shadow-sm p-8">
-              <div className="text-center mb-5">
-                <div className="text-5xl mb-3">{result.paid ? '✅' : result.pixPending ? '⏳' : '✅'}</div>
-                {result.paid ? (
-                  <>
-                    <h2 className="text-xl font-bold text-navy-900">Pagamento confirmado!</h2>
-                    <p className="text-gray-500 text-sm mt-1">Seu agendamento está garantido.</p>
-                  </>
-                ) : result.pixPending ? (
-                  <>
-                    <h2 className="text-xl font-bold text-navy-900">Agendamento recebido!</h2>
-                    <p className="text-gray-500 text-sm mt-1">Realize o PIX para confirmar seu horário.</p>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-xl font-bold text-navy-900">Agendamento confirmado!</h2>
-                    <p className="text-gray-500 text-sm mt-1">Você receberá um email de confirmação em breve.</p>
-                  </>
-                )}
-              </div>
-
-              {result.paid ? (
-                <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
-                  <p className="text-green-700 font-semibold text-sm">✓ Pagamento aprovado e horário garantido!</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome completo *</label>
+                  <input name="clientName" value={form.clientName} onChange={updateForm} required
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                    placeholder="Seu nome completo" />
                 </div>
-              ) : result.pixPending ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 space-y-2">
-                  <p className="text-amber-800 font-semibold text-sm">Realize o PIX para garantir o horário:</p>
-                  <div className="bg-white border border-amber-200 rounded-lg px-4 py-3 text-center">
-                    <p className="font-mono font-bold text-navy-900 break-all select-all">{info.pixKey}</p>
-                  </div>
-                  {consultaValor && <p className="text-amber-700 text-sm text-center font-medium">Valor: {consultaValor}</p>}
-                  <button
-                    type="button"
-                    onClick={() => navigator.clipboard.writeText(info.pixKey)}
-                    className="w-full py-2 rounded-lg border border-amber-300 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors">
-                    Copiar chave PIX
-                  </button>
-                  <p className="text-amber-600 text-xs text-center">Após o pagamento, o advogado confirmará e você receberá um email.</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input name="clientEmail" type="email" value={form.clientEmail} onChange={updateForm} required
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                    placeholder="seu@email.com" />
                 </div>
-              ) : (
-                <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
-                  <p className="text-green-700 font-semibold text-sm">✓ Agendamento registrado</p>
-                  <p className="text-green-600 text-xs mt-1">Você e o advogado receberão um email com os detalhes.</p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
+                  <input name="clientWhatsapp" value={form.clientWhatsapp}
+                    onChange={e => setForm(f => ({ ...f, clientWhatsapp: maskPhone(e.target.value) }))}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                    placeholder="(11) 99999-9999" />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setStep(0)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
+                <button disabled={!form.clientName || !form.clientEmail} onClick={() => setStep(2)}
+                  className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-40 transition-colors"
+                  style={{ backgroundColor: brand1 }}>
+                  Continuar →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="max-w-md bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="font-bold text-navy-900 mb-1 text-lg">Descreva seu caso</h2>
+              <p className="text-sm text-gray-500 mb-5">
+                Uma descrição breve ajuda o advogado a se preparar. A área do direito será identificada automaticamente.
+              </p>
+              <textarea name="description" value={form.description} onChange={updateForm} rows={5}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700 resize-none"
+                placeholder="Ex: Fui demitido sem justa causa e não recebi todas as verbas rescisórias. Trabalhei 3 anos na empresa..." />
+              {isListening && interimText && (
+                <p className="mt-1 px-1 text-xs text-gray-400 italic">{interimText}…</p>
+              )}
+
+              {detectingSpecialty && (
+                <p className="mt-2 text-xs text-gray-400 animate-pulse">Identificando área jurídica...</p>
+              )}
+              {!detectingSpecialty && form.specialty && !specialtyManual && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                  <span>Área: <span className="font-semibold text-navy-700">{form.specialty}</span></span>
+                  <button type="button" onClick={() => setSpecialtyManual(true)}
+                    className="underline hover:text-navy-900 transition-colors">alterar</button>
+                </div>
+              )}
+              {specialtyManual && (
+                <input value={form.specialty} onChange={e => setForm(f => ({ ...f, specialty: e.target.value }))}
+                  className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                  placeholder="Área do direito..." />
+              )}
+
+              {hasSpeechAPI && (
+                <button type="button" onClick={startListening}
+                  className={`mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border-2 transition-colors
+                    ${isListening ? 'border-red-400 text-red-500 bg-red-50 animate-pulse' : 'border-gray-200 text-gray-600 hover:border-navy-900'}`}>
+                  <span>{isListening ? '⏹ Parar gravação' : '🎤 Falar o problema'}</span>
+                </button>
+              )}
+              {micError && <p className="mt-2 text-xs text-red-500">{micError}</p>}
+
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
+                <button
+                  onClick={showPaymentStep ? handleGoToPayment : () => setStep(3)}
+                  disabled={creatingIntent || detectingSpecialty || !form.description}
+                  className="flex-1 py-3 rounded-xl font-bold disabled:opacity-50 transition-colors"
+                  style={{ backgroundColor: brand2, color: brand1 }}>
+                  {creatingIntent ? 'Aguarde...' : showPaymentStep ? 'Ir para pagamento →' : 'Continuar →'}
+                </button>
+              </div>
+              {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
+            </div>
+          )}
+
+          {step === 3 && showPaymentStep && clientSecret && (
+            <div className="max-w-md bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
+              {consultaValor && (
+                <p className="text-sm text-gray-500 mb-5">
+                  Valor da consulta: <span className="font-semibold text-navy-900">{consultaValor}</span>
+                </p>
+              )}
+              <Elements stripe={stripePromise} options={{ clientSecret, locale: 'pt-BR' }}>
+                <StripePaymentForm
+                  onSuccess={handlePaymentSuccess}
+                  onError={setError}
+                  consultaValor={consultaValor}
+                  brand1={brand1}
+                />
+              </Elements>
+              <button onClick={() => { setStep(2); setClientSecret(null); setStripePromise(null); setPendingAppt(null) }}
+                className="mt-4 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-medium text-sm">
+                ← Voltar
+              </button>
+            </div>
+          )}
+
+          {step === 3 && showPixStep && (
+            <div className="max-w-md bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento via PIX</h2>
+              <p className="text-sm text-gray-500 mb-5">
+                {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
+              </p>
+
+              {consultaValor && (
+                <div className="bg-gray-50 rounded-xl p-4 mb-4 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Valor da consulta</span>
+                  <span className="text-xl font-bold text-navy-900">{consultaValor}</span>
                 </div>
               )}
 
-              <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Data</span>
-                  <span className="font-semibold text-navy-900 capitalize">
-                    {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                  </span>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-5 space-y-3">
+                <p className="text-amber-800 text-sm font-semibold">Chave PIX para pagamento:</p>
+                <div className="bg-white border border-amber-200 rounded-lg px-4 py-3 text-center">
+                  <p className="font-mono font-bold text-navy-900 text-base break-all select-all">{info.pixKey}</p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Horário</span>
-                  <span className="font-semibold text-navy-900">{selectedSlot}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Advogado</span>
-                  <span className="font-semibold text-navy-900">{info.lawyerName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Área</span>
-                  <span className="font-semibold text-navy-900">{confirmationSpecialty}</span>
-                </div>
-                {(result.meetingLink || pendingAppt?.meetingLink) && (
-                  <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
-                    <span className="text-gray-500">Reunião online</span>
-                    <a href={result.meetingLink || pendingAppt?.meetingLink} target="_blank" rel="noopener noreferrer"
-                      className="font-semibold text-blue-600 hover:underline text-right max-w-[60%] break-all">
-                      Abrir link →
-                    </a>
-                  </div>
-                )}
-                {!(result.meetingLink || pendingAppt?.meetingLink) && address && (
-                  <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
-                    <span className="text-gray-500">Local</span>
-                    <span className="font-semibold text-navy-900 text-right max-w-[60%]">{address}</span>
-                  </div>
-                )}
-                {consultaValor && result.paid && (
-                  <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
-                    <span className="text-gray-500">Valor pago</span>
-                    <span className="font-bold text-navy-900">{consultaValor}</span>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(info.pixKey)}
+                  className="w-full py-2 rounded-lg border border-amber-300 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors">
+                  Copiar chave PIX
+                </button>
+                <p className="text-amber-700 text-xs">
+                  Após realizar o PIX, clique em "Confirmar agendamento". O advogado verificará o recebimento e confirmará seu horário.
+                </p>
               </div>
-            </div>
 
-            <div className="bg-white rounded-2xl shadow-sm p-6">
-              <p className="font-semibold text-navy-900 mb-4 text-sm">Salvar na agenda</p>
-              <div className="space-y-3">
-                <div className="flex gap-3">
-                  <a
-                    href={buildGoogleCalUrl({
-                      date: selectedDate,
-                      slot: selectedSlot,
-                      duration: info.slotDuration ?? 60,
-                      lawyerName: info.lawyerName,
-                      specialty: confirmationSpecialty,
-                      location: confirmationLocation,
-                    })}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-medium text-sm text-center hover:border-gray-400 transition-colors">
-                    📅 Google Calendar
-                  </a>
-                  <button
-                    onClick={() => downloadICS({
-                      date: selectedDate,
-                      slot: selectedSlot,
-                      duration: info.slotDuration ?? 60,
-                      lawyerName: info.lawyerName,
-                      specialty: confirmationSpecialty,
-                      location: confirmationLocation,
-                    })}
-                    className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-medium text-sm hover:border-gray-400 transition-colors">
-                    📥 Baixar .ics
-                  </button>
+              <div className="flex gap-3">
+                <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
+                <button onClick={handlePixBook} disabled={booking}
+                  className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
+                  style={{ backgroundColor: brand1 }}>
+                  {booking ? 'Aguarde...' : 'Confirmar agendamento →'}
+                </button>
+              </div>
+              {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
+            </div>
+          )}
+
+          {step === 3 && !showPaymentStep && !showPixStep && (
+            <div className="max-w-md bg-white rounded-2xl shadow-sm p-6">
+              <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
+              <p className="text-sm text-gray-500 mb-5">
+                {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
+              </p>
+
+              {consultaValor && (
+                <div className="bg-gray-50 rounded-xl p-4 mb-4 flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Valor estimado da consulta</span>
+                  <span className="text-xl font-bold text-navy-900">{consultaValor}</span>
                 </div>
-                {form.clientWhatsapp && (
-                  <a
-                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                      `📅 Lembrete: minha consulta jurídica com ${info.lawyerName}\n` +
-                      `Data: ${format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às ${selectedSlot}\n` +
-                      `Área: ${confirmationSpecialty}` +
-                      (confirmationLocation ? `\nLocal/Link: ${confirmationLocation}` : '')
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-2.5 rounded-xl font-medium text-sm text-center flex items-center justify-center gap-2 border-2 border-green-200 text-green-700 hover:bg-green-50 transition-colors">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                    </svg>
-                    Salvar lembrete no WhatsApp
-                  </a>
+              )}
+
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6">
+                <p className="text-amber-800 text-sm font-medium">
+                  💬 O advogado realizará a cobrança diretamente após a consulta.
+                </p>
+                <p className="text-amber-700 text-xs mt-1">
+                  Você receberá um email com os detalhes do agendamento.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
+                <button onClick={handleFreeBook} disabled={booking}
+                  className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
+                  style={{ backgroundColor: brand1 }}>
+                  {booking ? 'Aguarde...' : 'Confirmar →'}
+                </button>
+              </div>
+              {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
+            </div>
+          )}
+
+          {step === 4 && result && (
+            <div className="max-w-md space-y-4">
+              <div className="bg-white rounded-2xl shadow-sm p-8">
+                <div className="text-center mb-5">
+                  <div className="text-5xl mb-3">{result.paid ? '✅' : result.pixPending ? '⏳' : '✅'}</div>
+                  {result.paid ? (
+                    <>
+                      <h2 className="text-xl font-bold text-navy-900">Pagamento confirmado!</h2>
+                      <p className="text-gray-500 text-sm mt-1">Seu agendamento está garantido.</p>
+                    </>
+                  ) : result.pixPending ? (
+                    <>
+                      <h2 className="text-xl font-bold text-navy-900">Agendamento recebido!</h2>
+                      <p className="text-gray-500 text-sm mt-1">Realize o PIX para confirmar seu horário.</p>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-xl font-bold text-navy-900">Agendamento confirmado!</h2>
+                      <p className="text-gray-500 text-sm mt-1">Você receberá um email de confirmação em breve.</p>
+                    </>
+                  )}
+                </div>
+
+                {result.paid ? (
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
+                    <p className="text-green-700 font-semibold text-sm">✓ Pagamento aprovado e horário garantido!</p>
+                  </div>
+                ) : result.pixPending ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 space-y-2">
+                    <p className="text-amber-800 font-semibold text-sm">Realize o PIX para garantir o horário:</p>
+                    <div className="bg-white border border-amber-200 rounded-lg px-4 py-3 text-center">
+                      <p className="font-mono font-bold text-navy-900 break-all select-all">{info.pixKey}</p>
+                    </div>
+                    {consultaValor && <p className="text-amber-700 text-sm text-center font-medium">Valor: {consultaValor}</p>}
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(info.pixKey)}
+                      className="w-full py-2 rounded-lg border border-amber-300 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors">
+                      Copiar chave PIX
+                    </button>
+                    <p className="text-amber-600 text-xs text-center">Após o pagamento, o advogado confirmará e você receberá um email.</p>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
+                    <p className="text-green-700 font-semibold text-sm">✓ Agendamento registrado</p>
+                    <p className="text-green-600 text-xs mt-1">Você e o advogado receberão um email com os detalhes.</p>
+                  </div>
                 )}
+
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Data</span>
+                    <span className="font-semibold text-navy-900 capitalize">
+                      {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Horário</span>
+                    <span className="font-semibold text-navy-900">{selectedSlot}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Advogado</span>
+                    <span className="font-semibold text-navy-900">{info.lawyerName}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Área</span>
+                    <span className="font-semibold text-navy-900">{confirmationSpecialty}</span>
+                  </div>
+                  {(result.meetingLink || pendingAppt?.meetingLink) && (
+                    <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
+                      <span className="text-gray-500">Reunião online</span>
+                      <a href={result.meetingLink || pendingAppt?.meetingLink} target="_blank" rel="noopener noreferrer"
+                        className="font-semibold text-blue-600 hover:underline text-right max-w-[60%] break-all">
+                        Abrir link →
+                      </a>
+                    </div>
+                  )}
+                  {!(result.meetingLink || pendingAppt?.meetingLink) && address && (
+                    <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
+                      <span className="text-gray-500">Local</span>
+                      <span className="font-semibold text-navy-900 text-right max-w-[60%]">{address}</span>
+                    </div>
+                  )}
+                  {consultaValor && result.paid && (
+                    <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
+                      <span className="text-gray-500">Valor pago</span>
+                      <span className="font-bold text-navy-900">{consultaValor}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <p className="font-semibold text-navy-900 mb-4 text-sm">Salvar na agenda</p>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <a
+                      href={buildGoogleCalUrl({
+                        date: selectedDate,
+                        slot: selectedSlot,
+                        duration: info.slotDuration ?? 60,
+                        lawyerName: info.lawyerName,
+                        specialty: confirmationSpecialty,
+                        location: confirmationLocation,
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-medium text-sm text-center hover:border-gray-400 transition-colors">
+                      📅 Google Calendar
+                    </a>
+                    <button
+                      onClick={() => downloadICS({
+                        date: selectedDate,
+                        slot: selectedSlot,
+                        duration: info.slotDuration ?? 60,
+                        lawyerName: info.lawyerName,
+                        specialty: confirmationSpecialty,
+                        location: confirmationLocation,
+                      })}
+                      className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-medium text-sm hover:border-gray-400 transition-colors">
+                      📥 Baixar .ics
+                    </button>
+                  </div>
+                  {form.clientWhatsapp && (
+                    <a
+                      href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                        `📅 Lembrete: minha consulta jurídica com ${info.lawyerName}\n` +
+                        `Data: ${format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às ${selectedSlot}\n` +
+                        `Área: ${confirmationSpecialty}` +
+                        (confirmationLocation ? `\nLocal/Link: ${confirmationLocation}` : '')
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 rounded-xl font-medium text-sm text-center flex items-center justify-center gap-2 border-2 border-green-200 text-green-700 hover:bg-green-50 transition-colors">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                      </svg>
+                      Salvar lembrete no WhatsApp
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+        </div>
       </div>
     </div>
   )
