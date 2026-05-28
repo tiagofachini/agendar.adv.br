@@ -6,6 +6,7 @@ import {
 import { ptBR } from 'date-fns/locale'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
+import { useAuth } from '../context/AuthContext'
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 
@@ -174,7 +175,7 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
 }
 
 // ── Modal de compromisso ──────────────────────────────────────────────────────
-function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
+function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
     clientName: initial?.clientName || '',
@@ -328,7 +329,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
           )}
           {error && <p className="text-red-500 text-sm">{error}</p>}
           <div className="flex gap-3 pt-2">
-            {!isNew && (
+            {!isNew && canCancel && (
               <button type="button" onClick={cancel}
                 className="px-4 py-2.5 rounded-xl border-2 border-red-200 text-red-500 text-sm font-medium hover:bg-red-50 transition-colors">
                 Cancelar compromisso
@@ -447,6 +448,7 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, onConf
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function Appointments() {
+  const { effectivePlan } = useAuth()
   const [view, setView] = useState('week')
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [appointments, setAppointments] = useState([])
@@ -661,6 +663,7 @@ export default function Appointments() {
           onClose={() => setModal(null)}
           onSaved={saved}
           onCancelled={cancelled}
+          canCancel={effectivePlan === 'PRO'}
         />
       )}
     </div>
