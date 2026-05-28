@@ -48,7 +48,7 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-// ── Editor de texto rico (contenteditable) ────────────────────────────────────────────
+// ── Editor de texto rico (contenteditable) ────────────────────────────────────
 function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...' }) {
   const ref = useRef(null)
   const initialized = useRef(false)
@@ -173,7 +173,7 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
   )
 }
 
-// ── Modal de compromisso ──────────────────────────────────────────────
+// ── Modal de compromisso ──────────────────────────────────────────────────────
 function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
@@ -345,7 +345,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   )
 }
 
-// ── View Semanal ──────────────────────────────────────────────────────────────────────
+// ── View Semanal ──────────────────────────────────────────────────────────────
 function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) {
   const days = eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) })
   const byDay = days.map(d => appointments.filter(a => isSameDay(new Date(a.date), d)))
@@ -395,7 +395,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
   )
 }
 
-// ── View Lista ────────────────────────────────────────────────────────────────────────
+// ── View Lista ────────────────────────────────────────────────────────────────
 function ListView({ appointments, onAppointmentClick, selected, onToggle, onConfirmPix }) {
   if (!appointments.length) return (
     <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
@@ -445,8 +445,8 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, onConf
   )
 }
 
-// ── Página principal ─────────────────────────────────────────────────────────────────────────
-function Appointments() {
+// ── Página principal ──────────────────────────────────────────────────────────
+export default function Appointments() {
   const [view, setView] = useState('week')
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [appointments, setAppointments] = useState([])
@@ -666,5 +666,3 @@ function Appointments() {
     </div>
   )
 }
-
-export default Appointments
