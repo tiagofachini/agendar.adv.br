@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
+
+const ADMIN_EMAIL = 'emaildogago@gmail.com'
 
 async function loadLawyerData(userId) {
   const { data: lawyerData } = await supabase
@@ -12,17 +14,37 @@ async function loadLawyerData(userId) {
   return { ...lawyerData, settings }
 }
 
+async function fetchPlanInfo() {
+  const { data, error } = await supabase.rpc('get_plan_info')
+  if (error || !data) return { plan: 'FREE', monthlyCount: 0, monthlyLimit: 20 }
+  return data
+}
+
+const DEFAULT_PLAN = { plan: 'FREE', monthlyCount: 0, monthlyLimit: 20 }
+
 export function AuthProvider({ children }) {
   // undefined = ainda não verificado; null = sem sessão; objeto = sessão ativa
   const [session, setSession] = useState(undefined)
   const [lawyer, setLawyer] = useState(null)
+  const [planInfo, setPlanInfo] = useState(DEFAULT_PLAN)
+  const [adminViewPlan, setAdminViewPlanState] = useState(
+    () => localStorage.getItem('adminViewPlan') || null
+  )
+
+  const setAdminViewPlan = (plan) => {
+    if (plan) localStorage.setItem('adminViewPlan', plan)
+    else localStorage.removeItem('adminViewPlan')
+    setAdminViewPlanState(plan)
+  }
+
+  const refreshPlan = useCallback(async () => {
+    const info = await fetchPlanInfo()
+    setPlanInfo(info)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
 
-    // onAuthStateChange cobre TODOS os eventos: INITIAL_SESSION (inclui retorno
-    // de OAuth e magic link), SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, etc.
-    // Não chamamos getSession() separadamente para evitar corrida com a troca PKCE.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return
       setSession(session ?? null)
@@ -30,8 +52,12 @@ export function AuthProvider({ children }) {
         loadLawyerData(session.user.id)
           .then(data => { if (!cancelled) setLawyer(data) })
           .catch(() => { if (!cancelled) setLawyer(null) })
+        fetchPlanInfo()
+          .then(info => { if (!cancelled) setPlanInfo(info) })
+          .catch(() => {})
       } else {
         setLawyer(null)
+        setPlanInfo(DEFAULT_PLAN)
       }
     })
 
@@ -43,6 +69,9 @@ export function AuthProvider({ children }) {
 
   const logout = () => supabase.auth.signOut()
 
+  const isAdmin = session?.user?.email === ADMIN_EMAIL
+  const effectivePlan = isAdmin && adminViewPlan ? adminViewPlan : planInfo.plan
+
   return (
     <AuthContext.Provider value={{
       session,
@@ -50,6 +79,15 @@ export function AuthProvider({ children }) {
       loading: session === undefined,
       logout,
       setLawyer,
+      plan: planInfo.plan,
+      monthlyCount: planInfo.monthlyCount,
+      monthlyLimit: planInfo.monthlyLimit,
+      planExpiresAt: planInfo.planExpiresAt,
+      refreshPlan,
+      adminViewPlan,
+      setAdminViewPlan,
+      effectivePlan,
+      isAdmin,
     }}>
       {children}
     </AuthContext.Provider>
