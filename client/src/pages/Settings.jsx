@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import ProGate from '../components/ProGate'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
 const TABS = [
-  { key: 'google',    label: '🔗 Google' },
+  { key: 'google',    label: '🔗 Google', pro: true },
   { key: 'profile',   label: '🏢 Perfil' },
   { key: 'scheduler', label: '📋 Agendador' },
   { key: 'calendar',  label: '📅 Agenda' },
@@ -157,8 +157,7 @@ function ColorPicker({ label, value, onChange }) {
 }
 
 function ProfileSection({ data, onSaved }) {
-  const { lawyer, logout } = useAuth()
-  const navigate = useNavigate()
+  const { lawyer } = useAuth()
   const a = data.account || {}
   const o = data.office || {}
   const [form, setForm] = useState({
@@ -174,8 +173,6 @@ function ProfileSection({ data, onSaved }) {
   const [error, setError] = useState('')
   const [cepLoading, setCepLoading] = useState(false)
   const [specSearch, setSpecSearch] = useState('')
-  const [deleteLoading, setDeleteLoading] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     const a = data.account || {}
@@ -227,26 +224,9 @@ function ProfileSection({ data, onSaved }) {
     setLoading(false)
   }
 
-  const handleDeleteAccount = async () => {
-    if (!window.confirm(
-      'Excluir permanentemente sua conta?\n\nTodos os seus dados, clientes, compromissos e configurações serão apagados. Esta ação não pode ser desfeita.'
-    )) return
-    setDeleteLoading(true)
-    setDeleteError('')
-    try {
-      await api.delete('/settings/account')
-      logout()
-      navigate('/')
-    } catch (err) {
-      setDeleteError(err.response?.data?.error || err.message || 'Erro ao excluir conta')
-      setDeleteLoading(false)
-    }
-  }
-
   return (
     <>
     <Section title="Perfil do escritório" desc="Sua vitrine pública e dados internos." onSubmit={save} loading={loading} saved={saved} error={error}>
-      {/* Identidade visual */}
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Identidade visual</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
@@ -262,7 +242,6 @@ function ProfileSection({ data, onSaved }) {
         </div>
       </div>
 
-      {/* Endereço do escritório */}
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Endereço do escritório</p>
         <div className="grid grid-cols-2 gap-4">
@@ -301,7 +280,6 @@ function ProfileSection({ data, onSaved }) {
         <p className="text-xs text-gray-400">O endereço é exibido no agendador apenas como local da consulta presencial — nunca como forma de contato direto.</p>
       </div>
 
-      {/* Dados do responsável */}
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Dados do responsável</p>
@@ -323,7 +301,6 @@ function ProfileSection({ data, onSaved }) {
         </Field>
       </div>
 
-      {/* Especialidades */}
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Especialidades</p>
         <Field label="Áreas de atuação (até 5)">
@@ -355,38 +332,6 @@ function ProfileSection({ data, onSaved }) {
       </div>
 
     </Section>
-
-    <div className="bg-white rounded-2xl shadow-sm mb-5 border border-red-200 overflow-hidden">
-      <div className="flex items-center gap-2 px-6 py-3 bg-red-600">
-        <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-        </svg>
-        <span className="text-xs font-bold text-white uppercase tracking-widest">Zona do Perigo</span>
-      </div>
-      <div className="p-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="flex-1">
-            <p className="font-semibold text-gray-800 text-sm mb-2">Excluir conta permanentemente</p>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Esta ação remove de forma definitiva e irreversível todos os dados associados à sua conta:
-              perfil, clientes, compromissos, configurações, integrações e histórico financeiro.
-              Após a exclusão, não é possível recuperar nenhuma informação nem desfazer a operação.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleDeleteAccount}
-            disabled={deleteLoading}
-            className="flex-shrink-0 px-4 py-2 rounded-lg border border-red-300 text-red-600 text-xs font-semibold hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors disabled:opacity-40 self-start"
-          >
-            {deleteLoading ? 'Excluindo...' : 'Excluir minha conta'}
-          </button>
-        </div>
-        {deleteError && (
-          <p className="mt-4 text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{deleteError}</p>
-        )}
-      </div>
-    </div>
     </>
   )
 }
@@ -443,7 +388,6 @@ function GoogleIntegrationSection({ data, onSaved, banner }) {
         </div>
       )}
 
-      {/* Hero */}
       <div className="bg-navy-900 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-2">
           <svg className="w-8 h-8 flex-shrink-0" viewBox="0 0 24 24">
@@ -462,7 +406,6 @@ function GoogleIntegrationSection({ data, onSaved, banner }) {
         </p>
       </div>
 
-      {/* Benefícios */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {GOOGLE_BENEFITS.map((b) => (
           <div key={b.title} className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
@@ -473,7 +416,6 @@ function GoogleIntegrationSection({ data, onSaved, banner }) {
         ))}
       </div>
 
-      {/* Status e ação */}
       <div className="bg-white rounded-2xl shadow-sm p-6">
         {isConnected ? (
           <div className="space-y-4">
@@ -530,7 +472,6 @@ function GoogleIntegrationSection({ data, onSaved, banner }) {
   )
 }
 
-// Detects Brazilian phone number patterns: (XX) XXXXX-XXXX, +55..., 8+ consecutive digits
 const PHONE_RE = /(\+?55[\s-]?)?(\(?\d{2}\)?\s?)(\d{4,5}[-\s]?\d{4})|\d{8,}/g
 
 function stripPhoneNumbers(text) {
@@ -783,10 +724,8 @@ function CalendarSection({ data, onSaved }) {
         <p>Configure cada dia da semana com seu próprio horário de início, fim e intervalo de almoço. Dias inativos não aparecem no agendador público.</p>
       </InfoBlock>
 
-      {/* ── Grid de expediente por dia ── */}
       <Field label="Expediente por dia da semana">
         <div className="border border-gray-200 rounded-xl overflow-hidden">
-          {/* Cabeçalho — oculto em mobile */}
           <div className="hidden sm:grid bg-gray-50 border-b border-gray-100 px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wider gap-3"
                style={{ gridTemplateColumns: '44px 96px 1fr 1fr 1fr 1fr' }}>
             <div />
@@ -802,7 +741,6 @@ function CalendarSection({ data, onSaved }) {
               className="px-4 py-3 border-b border-gray-50 last:border-0 flex flex-col gap-2 sm:grid sm:items-center sm:gap-3"
               style={{ gridTemplateColumns: '44px 96px 1fr 1fr 1fr 1fr' }}>
 
-              {/* Toggle */}
               <button type="button" onClick={() => updateDay(dc.day, 'active', !dc.active)}
                 className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0
                   ${dc.active ? 'bg-navy-900' : 'bg-gray-200'}`}>
@@ -810,7 +748,6 @@ function CalendarSection({ data, onSaved }) {
                   ${dc.active ? 'left-5' : 'left-0.5'}`} />
               </button>
 
-              {/* Nome do dia */}
               <span className={`text-sm font-semibold hidden sm:block ${dc.active ? 'text-navy-900' : 'text-gray-400'}`}>
                 {DAY_SHORT[dc.day]}
               </span>
@@ -858,10 +795,8 @@ function CalendarSection({ data, onSaved }) {
         </p>
       </Field>
 
-      {/* ── Valores de consulta ── */}
       <Field label="Valor das consultas (R$/hora)">
         <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
-          {/* Valor padrão */}
           <div className="flex items-center gap-3 px-4 py-3">
             <span className="text-sm text-gray-700 flex-1 font-medium">Padrão (todas as especialidades)</span>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -876,7 +811,6 @@ function CalendarSection({ data, onSaved }) {
             </div>
           </div>
 
-          {/* Valores por especialidade */}
           {form.specialtyRates.map((rate, i) => (
             <div key={i} className="flex items-center gap-3 px-4 py-3">
               <select value={rate.specialty}
@@ -902,7 +836,6 @@ function CalendarSection({ data, onSaved }) {
             </div>
           ))}
 
-          {/* Adicionar especialidade */}
           <div className="px-4 py-3">
             <button type="button" onClick={addRate}
               className="text-sm text-navy-700 font-medium hover:text-navy-900 transition-colors">
@@ -919,6 +852,7 @@ function CalendarSection({ data, onSaved }) {
 }
 
 function FinancialSection({ data, banner, onSaved }) {
+  const { effectivePlan } = useAuth()
   const f = data.financial || {}
   const [onboarding, setOnboarding] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
@@ -976,6 +910,7 @@ function FinancialSection({ data, banner, onSaved }) {
           <p className="font-medium">{banner}</p>
         </div>
       )}
+      <ProGate>
       <div className="bg-navy-900 rounded-2xl p-6 text-white">
         <h3 className="font-bold text-lg mb-4">Como funciona o recebimento?</h3>
         <div className="space-y-4">
@@ -1050,6 +985,7 @@ function FinancialSection({ data, banner, onSaved }) {
           </button>
         )}
       </div>
+      </ProGate>
 
       <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
         <div>
@@ -1215,7 +1151,7 @@ export default function Settings() {
       </div>
 
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
-        {TABS.map(({ key, label }) => {
+        {TABS.map(({ key, label, pro }) => {
           const isGoogle = key === 'google'
           const googleNotConnected = isGoogle && !(settingsData?.scheduler?.googleCalendarConnected)
           return (
@@ -1223,6 +1159,7 @@ export default function Settings() {
               className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative
                 ${activeTab === key ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               {label}
+              {pro && <span className="ml-1 text-xs text-amber-500">⭐</span>}
               {googleNotConnected && (
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-400 rounded-full" />
               )}
@@ -1231,7 +1168,7 @@ export default function Settings() {
         })}
       </div>
 
-      {activeTab === 'google'    && <GoogleIntegrationSection data={settingsData} onSaved={load} banner={calendarBanner} />}
+      {activeTab === 'google'    && <ProGate><GoogleIntegrationSection data={settingsData} onSaved={load} banner={calendarBanner} /></ProGate>}
       {activeTab === 'profile'   && <ProfileSection    data={settingsData} onSaved={load} />}
       {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} banner={calendarBanner} onGoToGoogle={() => setActiveTab('google')} />}
       {activeTab === 'calendar'  && <CalendarSection   data={settingsData} onSaved={load} />}
