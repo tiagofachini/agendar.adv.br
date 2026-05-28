@@ -10,13 +10,13 @@ const TABS = [
   { value: '',        label: 'Todos' },
   { value: 'PAID',    label: 'Recebidos' },
   { value: 'PENDING', label: 'A receber' },
-  { value: 'OVERDUE', label: 'Vencidos' },
+  { value: 'OVERDUE', label: 'Atrasados' },
 ]
 
 const STATUS_STYLE = {
   PAID:      { label: 'Recebido',  color: 'bg-green-100 text-green-700' },
   PENDING:   { label: 'A receber', color: 'bg-yellow-100 text-yellow-700' },
-  OVERDUE:   { label: 'Vencido',   color: 'bg-red-100 text-red-700' },
+  OVERDUE:   { label: 'Atrasado',  color: 'bg-red-100 text-red-700' },
   CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-400' },
   REFUNDED:  { label: 'Estornado', color: 'bg-purple-100 text-purple-600' },
 }
@@ -151,7 +151,7 @@ export default function Finance() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <SummaryCard label="Recebido"  value={summary.paid}      color="border-l-green-500" />
         <SummaryCard label="A receber" value={summary.pending}   color="border-l-yellow-500" />
-        <SummaryCard label="Vencido"   value={summary.overdue}   color="border-l-red-500" />
+        <SummaryCard label="Atrasado"  value={summary.overdue}   color="border-l-red-500" />
         <SummaryCard label="Cancelado" value={summary.cancelled} color="border-l-gray-300" />
       </div>
 
