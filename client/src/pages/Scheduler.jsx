@@ -8,6 +8,7 @@ import { ptBR } from 'date-fns/locale'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { publicApi } from '../lib/api'
+import { supabase } from '../lib/supabase'
 
 
 const STEPS = ['Horário', 'Seus dados', 'Seu problema', 'Pagamento', 'Confirmação']
@@ -174,6 +175,7 @@ export default function Scheduler() {
   const [stripePromise, setStripePromise] = useState(null)
   const [pendingAppt, setPendingAppt] = useState(null)
   const [creatingIntent, setCreatingIntent] = useState(false)
+  const [monthBlocked, setMonthBlocked] = useState(false)
   const recognitionRef = useRef(null)
   const baseDescRef = useRef('')
 
@@ -186,7 +188,11 @@ export default function Scheduler() {
 
   useEffect(() => {
     publicApi.get(`/scheduler/${slug}`)
-      .then((r) => setInfo(r.data))
+      .then((r) => {
+        setInfo(r.data)
+        return supabase.rpc('get_appointment_month_count_by_slug', { p_slug: slug })
+      })
+      .then(({ data }) => { if (data?.blocked) setMonthBlocked(true) })
       .catch(() => setNotFound(true))
   }, [slug])
 
@@ -467,7 +473,18 @@ export default function Scheduler() {
 
       <div className="max-w-md mx-auto px-4 py-6">
 
-        {step === 0 && (
+        {step === 0 && monthBlocked && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+            <div className="text-4xl mb-3">📅</div>
+            <h2 className="font-bold text-amber-900 text-lg mb-2">Agenda temporariamente indisponível</h2>
+            <p className="text-amber-800 text-sm leading-relaxed">
+              Este advogado atingiu o limite de consultas disponíveis para este mês.
+              Entre em contato diretamente para verificar disponibilidade.
+            </p>
+          </div>
+        )}
+
+        {step === 0 && !monthBlocked && (
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
               <p className="font-semibold text-navy-900 mb-2">Como funciona?</p>
