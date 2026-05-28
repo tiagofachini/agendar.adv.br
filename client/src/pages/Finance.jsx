@@ -29,11 +29,33 @@ const BULK_STATUS_OPTIONS = [
 
 const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
 
-function SummaryCard({ label, value, color }) {
+const CARD_TOOLTIPS = {
+  paid:      'Valores já confirmados como recebidos pelo advogado.',
+  pending:   'Agendamentos cujo pagamento ainda não foi registrado como recebido.',
+  overdue:   'Pagamentos com data de vencimento ultrapassada sem confirmação.',
+  cancelled: 'Registros cancelados ou estornados.',
+}
+
+function InfoTooltip({ text }) {
+  return (
+    <span className="relative inline-block group">
+      <span className="ml-1 text-gray-300 hover:text-gray-400 cursor-help text-xs select-none">ⓘ</span>
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center leading-relaxed">
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+      </span>
+    </span>
+  )
+}
+
+function SummaryCard({ label, value, color, tooltip }) {
   return (
     <div className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 border-l-4 ${color}`}>
       <div className="text-2xl font-extrabold text-navy-900">{fmt(value)}</div>
-      <div className="text-sm text-gray-500 mt-1">{label}</div>
+      <div className="text-sm text-gray-500 mt-1 flex items-center">
+        {label}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </div>
     </div>
   )
 }
@@ -127,11 +149,17 @@ export default function Finance() {
               <div className="flex gap-8">
                 <div>
                   <p className="text-white text-2xl font-extrabold">{fmt(balance.available ?? 0)}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">Disponível para saque</p>
+                  <p className="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
+                  Disponível para saque
+                  <InfoTooltip text="Saldo liquidado disponível para transferência à sua conta bancária." />
+                </p>
                 </div>
                 <div>
                   <p className="text-gray-300 text-2xl font-extrabold">{fmt(balance.pending ?? 0)}</p>
-                  <p className="text-gray-400 text-xs mt-0.5">Em trânsito</p>
+                  <p className="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
+                  Em trânsito
+                  <InfoTooltip text="Valores em processamento pelo Stripe. Liberados em 2–7 dias úteis após a transação." />
+                </p>
                 </div>
               </div>
             </div>
@@ -149,10 +177,10 @@ export default function Finance() {
 
       {/* Resumo */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <SummaryCard label="Recebido"  value={summary.paid}      color="border-l-green-500" />
-        <SummaryCard label="A receber" value={summary.pending}   color="border-l-yellow-500" />
-        <SummaryCard label="Atrasado"  value={summary.overdue}   color="border-l-red-500" />
-        <SummaryCard label="Cancelado" value={summary.cancelled} color="border-l-gray-300" />
+        <SummaryCard label="Recebido"  value={summary.paid}      color="border-l-green-500"  tooltip={CARD_TOOLTIPS.paid} />
+        <SummaryCard label="A receber" value={summary.pending}   color="border-l-yellow-500" tooltip={CARD_TOOLTIPS.pending} />
+        <SummaryCard label="Atrasado"  value={summary.overdue}   color="border-l-red-500"    tooltip={CARD_TOOLTIPS.overdue} />
+        <SummaryCard label="Cancelado" value={summary.cancelled} color="border-l-gray-300"   tooltip={CARD_TOOLTIPS.cancelled} />
       </div>
 
       {/* Gráfico */}

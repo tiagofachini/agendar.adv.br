@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
       const end = url.searchParams.get('end')
       let q = sb
         .from('Appointment')
-        .select('*, client:Client(name,email,whatsapp)')
+        .select('*, client:Client(name,email,whatsapp), payments:Payment(id,status,amount)')
         .order('date')
       if (start) q = q.gte('date', start)
       if (end) q = q.lte('date', end)
