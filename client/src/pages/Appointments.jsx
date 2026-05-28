@@ -9,6 +9,14 @@ import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 
+const PAYMENT_STATUS_STYLE = {
+  PAID:      { label: 'Recebido',  color: 'bg-green-100 text-green-700' },
+  PENDING:   { label: 'A receber', color: 'bg-yellow-100 text-yellow-700' },
+  OVERDUE:   { label: 'Atrasado',  color: 'bg-red-100 text-red-700' },
+  CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-400' },
+  REFUNDED:  { label: 'Estornado', color: 'bg-purple-100 text-purple-600' },
+}
+
 const SOURCE_STYLES = {
   MANUAL: {
     PENDING_PAYMENT: { label: 'Ag. Pagamento', bg: 'bg-yellow-400', text: 'text-yellow-900', badge: 'bg-yellow-100 text-yellow-700' },
@@ -40,10 +48,15 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-// ── Editor de texto rico (contenteditable) ────────────────────────────────────
+// ── Editor de texto rico (contenteditable) ────────────────────────────────────────────
 function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...' }) {
   const ref = useRef(null)
   const initialized = useRef(false)
+  const [isListening, setIsListening] = useState(false)
+  const [micError, setMicError] = useState('')
+  const recognitionRef = useRef(null)
+  const baseHtmlRef = useRef('')
+  const finalTextRef = useRef('')
 
   useEffect(() => {
     if (ref.current && !initialized.current) {
@@ -56,6 +69,71 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
     ref.current.focus()
     document.execCommand(cmd, false)
     onChange(ref.current.innerHTML)
+  }
+
+  const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
+
+  const startListening = async () => {
+    if (isListening) {
+      try { recognitionRef.current?.stop() } catch {}
+      setIsListening(false)
+      ref.current.innerHTML = baseHtmlRef.current + (finalTextRef.current ? (baseHtmlRef.current ? ' ' : '') + finalTextRef.current : '')
+      onChange(ref.current.innerHTML)
+      return
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+    setMicError('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+    } catch {
+      setMicError('Permissão de microfone negada.')
+      return
+    }
+    baseHtmlRef.current = ref.current.innerHTML
+    finalTextRef.current = ''
+    const recognition = new SR()
+    recognition.lang = 'pt-BR'
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognitionRef.current = recognition
+    recognition.onresult = (e) => {
+      let final = ''
+      let interim = ''
+      for (const result of Array.from(e.results)) {
+        if (result.isFinal) final += result[0].transcript + ' '
+        else interim += result[0].transcript
+      }
+      finalTextRef.current = final.trimEnd()
+      const sep = baseHtmlRef.current && (final || interim) ? ' ' : ''
+      ref.current.innerHTML = baseHtmlRef.current + sep + final +
+        (interim ? `<span style="color:#9ca3af;font-style:italic">${interim}</span>` : '')
+      if (final) onChange(baseHtmlRef.current + (baseHtmlRef.current && final.trim() ? ' ' : '') + final.trimEnd())
+    }
+    recognition.onend = () => {
+      setIsListening(false)
+      ref.current.innerHTML = baseHtmlRef.current + (finalTextRef.current ? (baseHtmlRef.current ? ' ' : '') + finalTextRef.current : '')
+      onChange(ref.current.innerHTML)
+    }
+    recognition.onerror = (e) => {
+      setIsListening(false)
+      ref.current.innerHTML = baseHtmlRef.current + (finalTextRef.current ? (baseHtmlRef.current ? ' ' : '') + finalTextRef.current : '')
+      onChange(ref.current.innerHTML)
+      const msgs = {
+        'not-allowed':   'Permissão de microfone negada.',
+        'no-speech':     'Nenhuma fala detectada. Tente novamente.',
+        'audio-capture': 'Microfone não encontrado ou indisponível.',
+        'network':       'Erro de rede ao processar o áudio.',
+      }
+      setMicError(msgs[e.error] ?? `Erro: ${e.error}`)
+    }
+    try {
+      recognition.start()
+      setIsListening(true)
+    } catch {
+      setIsListening(false)
+    }
   }
 
   return (
@@ -72,6 +150,14 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
             {label}
           </button>
         ))}
+        {hasSpeechAPI && (
+          <button type="button" title="Transcrição por voz"
+            onMouseDown={(e) => { e.preventDefault(); startListening() }}
+            className={`ml-auto px-2 h-7 flex items-center justify-center rounded text-sm transition-colors
+              ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-500 hover:bg-gray-200'}`}>
+            {isListening ? '⏹' : '🎤'}
+          </button>
+        )}
       </div>
       <div
         ref={ref}
@@ -82,11 +168,12 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
         data-placeholder={placeholder}
         className="min-h-[120px] px-4 py-3 text-sm focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
       />
+      {micError && <p className="px-4 py-1.5 text-xs text-red-500 bg-red-50 border-t border-red-100">{micError}</p>}
     </div>
   )
 }
 
-// ── Modal de compromisso ──────────────────────────────────────────────────────
+// ── Modal de compromisso ──────────────────────────────────────────────
 function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
@@ -171,6 +258,25 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
               <p className="font-semibold text-navy-900">{initial.clientName}</p>
               <p className="text-sm text-gray-500">{initial.specialty}</p>
               <p className="text-sm text-gray-400">{format(new Date(initial.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
+              {(() => {
+                const pmt = initial.payments?.[0]
+                if (!pmt) return null
+                const st = PAYMENT_STATUS_STYLE[pmt.status]
+                if (!st) return null
+                return (
+                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-200">
+                    <span className="text-xs text-gray-400">Pagamento</span>
+                    <div className="flex items-center gap-2">
+                      {pmt.amount != null && (
+                        <span className="text-xs font-semibold text-navy-900">
+                          R$ {Number(pmt.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${st.color}`}>{st.label}</span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           )}
           <div className="grid grid-cols-2 gap-4">
@@ -239,7 +345,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled }) {
   )
 }
 
-// ── View Semanal ──────────────────────────────────────────────────────────────
+// ── View Semanal ──────────────────────────────────────────────────────────────────────
 function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) {
   const days = eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) })
   const byDay = days.map(d => appointments.filter(a => isSameDay(new Date(a.date), d)))
@@ -289,7 +395,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
   )
 }
 
-// ── View Lista ────────────────────────────────────────────────────────────────
+// ── View Lista ────────────────────────────────────────────────────────────────────────
 function ListView({ appointments, onAppointmentClick, selected, onToggle, onConfirmPix }) {
   if (!appointments.length) return (
     <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
@@ -339,8 +445,8 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, onConf
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
-export default function Appointments() {
+// ── Página principal ─────────────────────────────────────────────────────────────────────────
+function Appointments() {
   const [view, setView] = useState('week')
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [appointments, setAppointments] = useState([])
@@ -560,3 +666,5 @@ export default function Appointments() {
     </div>
   )
 }
+
+export default Appointments
