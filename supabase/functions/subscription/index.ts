@@ -116,8 +116,9 @@ async function getOrCreateProPrice(stripe: Stripe, supabase: ReturnType<typeof c
 
   if (cfg?.value) {
     try {
-      await stripe.prices.retrieve(cfg.value)
-      return cfg.value
+      const existing = await stripe.prices.retrieve(cfg.value)
+      if (existing.currency === 'brl') return cfg.value
+      // price em moeda errada — recria em BRL
     } catch { /* preço não existe mais, recria */ }
   }
 
