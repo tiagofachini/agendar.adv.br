@@ -49,7 +49,7 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-// ── Editor de texto rico (contenteditable) ────────────────────────────────────────────
+// ── Editor de texto rico (contenteditable) ────────────────────────────────────────────────
 function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...' }) {
   const ref = useRef(null)
   const initialized = useRef(false)
@@ -174,7 +174,7 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
   )
 }
 
-// ── Drawer de compromisso ──────────────────────────────────────────────
+// ── Drawer de compromisso ────────────────────────────────────────────────
 function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
@@ -476,7 +476,6 @@ export default function Appointments() {
 
   useEffect(() => { load() }, [load])
 
-  // Filtro de status (client-side)
   const filtered = statusFilter
     ? appointments.filter(a => a.status === statusFilter)
     : appointments
@@ -543,8 +542,7 @@ export default function Appointments() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-navy-900">Compromissos</h1>
@@ -555,7 +553,6 @@ export default function Appointments() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Filtro de status */}
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-navy-700">
             <option value="">Todos os status</option>
@@ -564,7 +561,6 @@ export default function Appointments() {
             <option value="COMPLETED">Realizado</option>
             <option value="CANCELLED">Cancelado</option>
           </select>
-          {/* View switcher */}
           <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
             {[{ v: 'week', l: 'Semana' }, { v: 'list', l: 'Lista' }].map(({ v, l }) => (
               <button key={v} onClick={() => { setView(v); clearSelect() }}
@@ -582,7 +578,6 @@ export default function Appointments() {
         </div>
       </div>
 
-      {/* Navegação semana */}
       {view === 'week' && (
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => setWeekStart(subWeeks(weekStart, 1))}
@@ -613,7 +608,6 @@ export default function Appointments() {
         />
       )}
 
-      {/* Legenda */}
       <div className="mt-4 space-y-2">
         {[
           { label: 'Agendado manualmente', src: 'MANUAL' },
@@ -631,7 +625,6 @@ export default function Appointments() {
         ))}
       </div>
 
-      {/* Barra de ações em lote */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-navy-900 text-white rounded-2xl shadow-2xl px-5 py-3 flex items-center gap-4">
           {bulkError && <span className="text-xs text-red-400">{bulkError}</span>}

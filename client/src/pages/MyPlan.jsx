@@ -112,13 +112,12 @@ export default function MyPlan() {
   const isBlocked = monthlyLimit && monthlyCount >= monthlyLimit
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-navy-900">Meu Plano</h1>
         <p className="text-sm text-gray-500">Gerencie sua assinatura e veja os benefícios disponíveis</p>
       </div>
 
-      {/* Banner de checkout */}
       {checkoutMsg === 'success' && (
         <div className="mb-6 bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
           <span className="text-green-500 text-xl">✓</span>
@@ -131,7 +130,6 @@ export default function MyPlan() {
         </div>
       )}
 
-      {/* Plano atual */}
       {effectivePlan === 'FREE' ? (
         <FreePlanCard
           monthlyCount={monthlyCount}
@@ -151,7 +149,6 @@ export default function MyPlan() {
         />
       )}
 
-      {/* Tabela comparativa */}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
         <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-100">
           <div className="px-5 py-4 text-sm font-semibold text-gray-600">Funcionalidade</div>
@@ -177,7 +174,6 @@ export default function MyPlan() {
         ))}
       </div>
 
-      {/* Histórico de pagamentos (Pro) */}
       {plan === 'PRO' && (
         <div className="bg-white rounded-2xl shadow-sm mb-6">
           <div className="px-6 py-5 border-b border-gray-100">
@@ -212,7 +208,6 @@ export default function MyPlan() {
         </div>
       )}
 
-      {/* Zona do Perigo */}
       <div className="bg-white rounded-2xl shadow-sm border border-red-200 overflow-hidden">
         <div className="flex items-center gap-2 px-6 py-3 bg-red-600">
           <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
