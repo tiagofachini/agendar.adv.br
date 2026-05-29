@@ -1151,7 +1151,7 @@ export default function Settings() {
   )
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-navy-900">Configurações</h1>
         <p className="text-sm text-gray-500">Personalize seu escritório e agendador</p>
