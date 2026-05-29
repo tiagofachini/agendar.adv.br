@@ -49,7 +49,7 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-// ── Editor de texto rico (contenteditable) ────────────────────────────────────
+// ── Editor de texto rico (contenteditable) ────────────────────────────────────────────
 function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...' }) {
   const ref = useRef(null)
   const initialized = useRef(false)
@@ -174,7 +174,7 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
   )
 }
 
-// ── Modal de compromisso ──────────────────────────────────────────────────────
+// ── Drawer de compromisso ──────────────────────────────────────────────
 function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
@@ -224,14 +224,17 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel })
   const upd = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-5 border-b sticky top-0 bg-white">
-          <h2 className="font-bold text-navy-900 text-lg">{isNew ? 'Novo compromisso' : 'Compromisso'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+    <div className="fixed inset-0 z-40 flex">
+      <div className="flex-1 bg-black/30" onClick={onClose} />
+      <div className="w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden">
+        <div className="bg-navy-900 text-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="font-bold text-lg">{isNew ? 'Novo compromisso' : initial.clientName}</h2>
+            {!isNew && <p className="text-gray-300 text-sm">{initial.specialty}</p>}
+          </div>
+          <button onClick={onClose} className="text-gray-300 hover:text-white text-xl leading-none">×</button>
         </div>
-        <form onSubmit={save} className="p-6 space-y-4">
+        <form onSubmit={save} className="flex-1 overflow-y-auto p-6 space-y-4">
           {isNew && <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome do cliente *</label>
@@ -346,7 +349,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel })
   )
 }
 
-// ── View Semanal ──────────────────────────────────────────────────────────────
+// ── View Semanal ───────────────────────────────────────────────────────────────
 function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) {
   const days = eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) })
   const byDay = days.map(d => appointments.filter(a => isSameDay(new Date(a.date), d)))
@@ -396,7 +399,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
   )
 }
 
-// ── View Lista ────────────────────────────────────────────────────────────────
+// ── View Lista ────────────────────────────────────────────────────────────────────
 function ListView({ appointments, onAppointmentClick, selected, onToggle, onConfirmPix }) {
   if (!appointments.length) return (
     <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
@@ -446,7 +449,7 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, onConf
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+// ── Página principal ──────────────────────────────────────────────────────────────────
 export default function Appointments() {
   const { effectivePlan } = useAuth()
   const [view, setView] = useState('week')
