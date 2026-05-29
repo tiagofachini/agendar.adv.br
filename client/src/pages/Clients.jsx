@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import api from '../lib/api'
 
-// ── Modal de novo/editar cliente ─────────────────────────────────────────────
+// ── Modal de novo/editar cliente ───────────────────────────────────────────────
 function ClientModal({ clientId, onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', email: '', whatsapp: '' })
   const [loading, setLoading] = useState(false)
@@ -172,7 +172,7 @@ function ClientDetail({ clientId, onClose, onEdit }) {
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+// ── Página principal ──────────────────────────────────────────────────────────────────
 export default function Clients() {
   const [clients, setClients] = useState([])
   const [total, setTotal] = useState(0)
@@ -181,6 +181,7 @@ export default function Clients() {
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
+  const [editId, setEditId] = useState(null)
   const [selected, setSelected] = useState(new Set())
   const [bulkError, setBulkError] = useState('')
 
@@ -230,7 +231,7 @@ export default function Clients() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -338,7 +339,18 @@ export default function Clients() {
         <ClientDetail
           clientId={selectedId}
           onClose={() => setSelectedId(null)}
-          onEdit={() => {}}
+          onEdit={() => { setEditId(selectedId); setSelectedId(null) }}
+        />
+      )}
+
+      {editId && (
+        <ClientModal
+          clientId={editId}
+          onClose={() => setEditId(null)}
+          onSaved={(c) => {
+            setClients(prev => prev.map(x => x.id === c.id ? { ...x, ...c } : x))
+            setEditId(null)
+          }}
         />
       )}
     </div>
