@@ -700,13 +700,20 @@ function CalendarSection({ data, onSaved }) {
 
   const save = async (e) => {
     e.preventDefault(); setLoading(true); setSaved(false); setError('')
+    const rateVal = form.hourlyRate !== '' ? parseFloat(form.hourlyRate) : null
+    const invalidSpecialty = form.specialtyRates.find(r => r.specialty && r.rate !== '' && parseFloat(r.rate) < 25)
+    if ((rateVal !== null && rateVal < 25) || invalidSpecialty) {
+      setError('O valor mínimo por hora é R$ 25,00.')
+      setLoading(false)
+      return
+    }
     try {
       await api.put('/settings/calendar', {
         workSchedule: form.workSchedule,
         specialtyRates: form.specialtyRates
           .filter(r => r.specialty && r.rate !== '')
           .map(r => ({ specialty: r.specialty, rate: parseFloat(r.rate) })),
-        hourlyRate: form.hourlyRate !== '' ? parseFloat(form.hourlyRate) : null,
+        hourlyRate: rateVal,
       })
       setSaved(true); onSaved()
     } catch (err) {
@@ -805,7 +812,7 @@ function CalendarSection({ data, onSaved }) {
                 <input type="number" value={form.hourlyRate}
                   onChange={e => setForm(f => ({ ...f, hourlyRate: e.target.value }))}
                   className={inputCls + ' pl-9 py-2 text-sm'}
-                  placeholder="—" min="0" step="0.01" />
+                  placeholder="—" min="25" step="0.01" />
               </div>
               <span className="text-sm text-gray-400 w-10">/hora</span>
             </div>
@@ -827,7 +834,7 @@ function CalendarSection({ data, onSaved }) {
                   <input type="number" value={rate.rate}
                     onChange={e => updateRate(i, 'rate', e.target.value)}
                     className={inputCls + ' pl-9 py-2 text-sm'}
-                    placeholder="0,00" min="0" step="0.01" />
+                    placeholder="0,00" min="25" step="0.01" />
                 </div>
                 <span className="text-sm text-gray-400 w-10">/hora</span>
               </div>
