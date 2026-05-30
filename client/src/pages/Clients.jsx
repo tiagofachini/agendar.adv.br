@@ -238,8 +238,12 @@ function ClientDetail({ clientId, onClose, onEdit }) {
     e.preventDefault()
     setSendLoading(true); setError('')
     try {
-      await api.post(`/clients/${clientId}/message`, msgForm)
-      setMsgForm({ channel: 'email', subject: '', body: '' })
+      if (msgForm.channel === 'whatsapp') {
+        await api.post('/whatsapp/send', { clientId, message: msgForm.body })
+      } else {
+        await api.post(`/clients/${clientId}/message`, { subject: msgForm.subject, body: msgForm.body })
+      }
+      setMsgForm(f => ({ ...f, subject: '', body: '' }))
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao enviar mensagem')
     }
@@ -330,62 +334,54 @@ function ClientDetail({ clientId, onClose, onEdit }) {
 
           {/* Enviar mensagem */}
           <div className="border border-gray-200 rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-              <div className="flex items-center gap-2.5">
-                <WhatsAppIcon className="w-5 h-5 text-green-500" />
-                <span className="font-semibold text-navy-900 text-sm">Enviar mensagem</span>
-              </div>
-              {!isPro && (
-                <span className="text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">⭐ Pro</span>
-              )}
+            <div className="flex items-center px-4 py-3 bg-gray-50 border-b border-gray-200 gap-2.5">
+              <WhatsAppIcon className="w-5 h-5 text-green-500" />
+              <span className="font-semibold text-navy-900 text-sm">Enviar mensagem</span>
             </div>
 
-            {isPro ? (
-              <form onSubmit={sendMsg} className="p-4 space-y-3">
-                <div className="flex gap-2">
-                  <button type="button"
-                    onClick={() => setMsgForm(f => ({ ...f, channel: 'email' }))}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors
-                      ${msgForm.channel === 'email' ? 'bg-navy-900 text-white border-navy-900' : 'bg-white text-gray-600 border-gray-200 hover:border-navy-300'}`}>
-                    Email
-                  </button>
-                  <button type="button"
-                    onClick={() => setMsgForm(f => ({ ...f, channel: 'whatsapp' }))}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors flex items-center justify-center gap-2
-                      ${msgForm.channel === 'whatsapp' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'}`}>
-                    <WhatsAppIcon className="w-4 h-4" /> WhatsApp
-                  </button>
-                </div>
-                {msgForm.channel === 'email' && (
-                  <input className={cls} placeholder="Assunto" value={msgForm.subject}
-                    onChange={e => setMsgForm({ ...msgForm, subject: e.target.value })} required />
-                )}
-                <textarea className={`${cls} resize-none`} rows={4} placeholder="Mensagem..."
-                  value={msgForm.body} onChange={e => setMsgForm({ ...msgForm, body: e.target.value })} required />
-                {error && <p className="text-red-500 text-xs">{error}</p>}
-                <button type="submit" disabled={sendLoading}
-                  className="w-full py-2 bg-navy-900 text-white rounded-xl text-sm font-medium hover:bg-navy-800 disabled:opacity-50">
-                  {sendLoading ? 'Enviando...' : 'Enviar'}
+            <div className="p-4 space-y-3">
+              {/* Seletor de canal — sempre visível */}
+              <div className="flex gap-2">
+                <button type="button"
+                  onClick={() => setMsgForm(f => ({ ...f, channel: 'email' }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors
+                    ${msgForm.channel === 'email' ? 'bg-navy-900 text-white border-navy-900' : 'bg-white text-gray-600 border-gray-200 hover:border-navy-300'}`}>
+                  Email
                 </button>
-              </form>
-            ) : (
-              <div className="p-4 space-y-3">
-                <div className="flex gap-2 pointer-events-none opacity-40">
-                  <div className="flex-1 py-2 rounded-xl text-sm font-medium border bg-navy-900 text-white border-navy-900 text-center">Email</div>
-                  <div className="flex-1 py-2 rounded-xl text-sm font-medium border bg-white text-gray-600 border-gray-200 text-center flex items-center justify-center gap-2">
-                    <WhatsAppIcon className="w-4 h-4 text-green-500" /> WhatsApp
-                  </div>
-                </div>
-                <div className="pointer-events-none opacity-40 space-y-2">
-                  <div className="w-full h-9 bg-gray-100 rounded-lg" />
-                  <div className="w-full h-24 bg-gray-100 rounded-lg" />
-                </div>
-                <a href="/my-plan"
-                  className="block w-full py-2.5 text-center rounded-xl text-sm font-semibold bg-amber-400 text-amber-900 hover:bg-amber-500 transition-colors">
-                  ⭐ Disponível no Plano Pro — Fazer upgrade
-                </a>
+                <button type="button"
+                  onClick={() => setMsgForm(f => ({ ...f, channel: 'whatsapp' }))}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors flex items-center justify-center gap-1.5
+                    ${msgForm.channel === 'whatsapp' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'}`}>
+                  <WhatsAppIcon className="w-4 h-4" /> WhatsApp
+                  {!isPro && <span className="text-xs font-bold ml-0.5">⭐</span>}
+                </button>
               </div>
-            )}
+
+              {/* WhatsApp selecionado por usuário Free */}
+              {msgForm.channel === 'whatsapp' && !isPro ? (
+                <div className="text-center py-3 space-y-3">
+                  <p className="text-sm text-gray-500">Envio via WhatsApp disponível no Plano Pro.</p>
+                  <a href="/my-plan"
+                    className="block w-full py-2.5 text-center rounded-xl text-sm font-semibold bg-amber-400 text-amber-900 hover:bg-amber-500 transition-colors">
+                    ⭐ Fazer upgrade para o Plano Pro
+                  </a>
+                </div>
+              ) : (
+                <form onSubmit={sendMsg} className="space-y-3">
+                  {msgForm.channel === 'email' && (
+                    <input className={cls} placeholder="Assunto" value={msgForm.subject}
+                      onChange={e => setMsgForm({ ...msgForm, subject: e.target.value })} required />
+                  )}
+                  <textarea className={`${cls} resize-none`} rows={4} placeholder="Mensagem..."
+                    value={msgForm.body} onChange={e => setMsgForm({ ...msgForm, body: e.target.value })} required />
+                  {error && <p className="text-red-500 text-xs">{error}</p>}
+                  <button type="submit" disabled={sendLoading}
+                    className="w-full py-2 bg-navy-900 text-white rounded-xl text-sm font-medium hover:bg-navy-800 disabled:opacity-50">
+                    {sendLoading ? 'Enviando...' : 'Enviar'}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </div>
