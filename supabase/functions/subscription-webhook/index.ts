@@ -60,6 +60,41 @@ Deno.serve(async (req) => {
           .eq('id', lawyerId)
 
         console.log(`Lawyer ${lawyerId} upgraded to PRO via checkout`)
+
+        // Programa de indicação: concede 1 mês ao indicador se ainda não recompensado
+        const refCode = session.metadata?.refCode
+        if (refCode) {
+          const { data: referee } = await supabase
+            .from('Lawyer')
+            .select('referralRewardedAt')
+            .eq('id', lawyerId)
+            .maybeSingle()
+
+          if (referee && !referee.referralRewardedAt) {
+            const { data: referrer } = await supabase
+              .from('Lawyer')
+              .select('id, plan, planExpiresAt')
+              .eq('referralCode', refCode)
+              .maybeSingle()
+
+            if (referrer && referrer.id !== lawyerId) {
+              const base = referrer.plan === 'PRO' && referrer.planExpiresAt && new Date(referrer.planExpiresAt) > new Date()
+                ? new Date(referrer.planExpiresAt)
+                : new Date()
+              base.setDate(base.getDate() + 30)
+
+              await supabase.from('Lawyer')
+                .update({ plan: 'PRO', planExpiresAt: base.toISOString() })
+                .eq('id', referrer.id)
+
+              await supabase.from('Lawyer')
+                .update({ referralRewardedAt: new Date().toISOString() })
+                .eq('id', lawyerId)
+
+              console.log(`Referral reward: +30 days to ${referrer.id} (referred by code ${refCode})`)
+            }
+          }
+        }
         break
       }
 

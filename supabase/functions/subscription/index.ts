@@ -60,6 +60,16 @@ Deno.serve(async (req) => {
       const priceId = await getOrCreateProPrice(stripe, supabase)
       const customerId = await getOrCreateCustomer(stripe, supabase, lawyer)
 
+      const refCode: string | undefined = body.refCode || undefined
+
+      // Persiste o código de quem indicou, para fallback caso o metadata da sessão se perca
+      if (refCode) {
+        await supabase.from('Lawyer').update({ referredByCode: refCode }).eq('id', lawyer.id)
+      }
+
+      const meta: Record<string, string> = { lawyerId: lawyer.id }
+      if (refCode) meta.refCode = refCode
+
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
@@ -67,8 +77,8 @@ Deno.serve(async (req) => {
         line_items: [{ price: priceId, quantity: 1 }],
         success_url: `${Deno.env.get('SITE_URL') ?? 'https://agendar.adv.br'}/my-plan?checkout=success`,
         cancel_url: `${Deno.env.get('SITE_URL') ?? 'https://agendar.adv.br'}/my-plan?checkout=cancelled`,
-        metadata: { lawyerId: lawyer.id },
-        subscription_data: { metadata: { lawyerId: lawyer.id } },
+        metadata: meta,
+        subscription_data: { metadata: meta },
         locale: 'pt-BR',
       })
 

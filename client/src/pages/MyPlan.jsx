@@ -39,6 +39,7 @@ export default function MyPlan() {
     const checkout = params.get('checkout')
     window.history.replaceState({}, '', '/my-plan')
     if (checkout === 'success') {
+      localStorage.removeItem('referralCode')
       setCheckoutMsg('success')
       refreshPlan()
     } else if (checkout === 'cancelled') {
@@ -57,7 +58,8 @@ export default function MyPlan() {
   const handleUpgrade = async () => {
     setLoading(true)
     try {
-      const { data } = await api.post('/subscription/checkout')
+      const refCode = localStorage.getItem('referralCode') || undefined
+      const { data } = await api.post('/subscription/checkout', refCode ? { refCode } : {})
       if (data.url) window.location.href = data.url
     } catch (err) {
       alert(err.response?.data?.error || 'Erro ao iniciar checkout. Tente novamente.')

@@ -50,10 +50,13 @@ jobs:
           deploy_fn dashboard
           deploy_fn finance
           deploy_fn google-calendar
+          deploy_fn referrals
           deploy_fn scheduler
           deploy_fn settings
           deploy_fn stripe-connect
           deploy_fn stripe-webhook "--no-verify-jwt"
+          deploy_fn subscription
+          deploy_fn subscription-webhook "--no-verify-jwt"
           deploy_fn whatsapp
 
   deploy:

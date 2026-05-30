@@ -11,6 +11,7 @@ const NAV = [
   { to: '/finance',      icon: '💰', label: 'Financeiro' },
   { to: '/settings',     icon: '⚙️', label: 'Configurações' },
   { to: '/my-plan',      icon: '⭐', label: 'Meu Plano' },
+  { to: '/referrals',   icon: '🎁', label: 'Indicações' },
 ]
 
 export default function AppLayout() {
