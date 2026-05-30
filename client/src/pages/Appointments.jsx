@@ -50,7 +50,7 @@ function maskPhone(raw) {
 }
 
 // ── Editor de texto rico (contenteditable) ────────────────────────────────────────────────
-function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...' }) {
+function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações sobre o atendimento...', isPro }) {
   const ref = useRef(null)
   const initialized = useRef(false)
   const [isListening, setIsListening] = useState(false)
@@ -151,14 +151,6 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
             {label}
           </button>
         ))}
-        {hasSpeechAPI && (
-          <button type="button" title="Transcrição por voz"
-            onMouseDown={(e) => { e.preventDefault(); startListening() }}
-            className={`ml-auto px-2 h-7 flex items-center justify-center rounded text-sm transition-colors
-              ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-500 hover:bg-gray-200'}`}>
-            {isListening ? '⏹' : '🎤'}
-          </button>
-        )}
       </div>
       <div
         ref={ref}
@@ -169,13 +161,40 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
         data-placeholder={placeholder}
         className="min-h-[120px] px-4 py-3 text-sm focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
       />
+      <div className={`border-t px-4 py-3 flex items-center justify-between gap-4 ${isListening ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-xl flex-shrink-0">{isListening ? '🔴' : '🎤'}</span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-gray-800 leading-tight">Transcrição por voz</p>
+            <p className="text-xs text-gray-400 leading-tight">
+              {isPro && isListening ? 'Ouvindo… clique em Parar para encerrar' : 'Dite suas anotações — converte fala em texto'}
+            </p>
+          </div>
+        </div>
+        {isPro ? (
+          hasSpeechAPI ? (
+            <button type="button" onMouseDown={e => { e.preventDefault(); startListening() }}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-sm font-semibold transition-colors
+                ${isListening ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse' : 'bg-navy-900 text-white hover:bg-navy-800'}`}>
+              {isListening ? '⏹ Parar' : 'Iniciar'}
+            </button>
+          ) : (
+            <span className="text-xs text-gray-400 italic flex-shrink-0">Não suportado neste navegador</span>
+          )
+        ) : (
+          <a href="/my-plan"
+            className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-400 text-amber-900 hover:bg-amber-500 transition-colors whitespace-nowrap">
+            ⭐ Plano Pro
+          </a>
+        )}
+      </div>
       {micError && <p className="px-4 py-1.5 text-xs text-red-500 bg-red-50 border-t border-red-100">{micError}</p>}
     </div>
   )
 }
 
 // ── Drawer de compromisso ────────────────────────────────────────────────
-function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel }) {
+function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, isPro }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
     clientName: initial?.clientName || '',
@@ -326,6 +345,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel })
                 <RichTextEditor
                   value={form.attendanceNotes}
                   onChange={(html) => setForm(f => ({ ...f, attendanceNotes: html }))}
+                  isPro={isPro}
                 />
               </div>
             </>
@@ -660,6 +680,7 @@ export default function Appointments() {
           onSaved={saved}
           onCancelled={cancelled}
           canCancel={effectivePlan === 'PRO'}
+          isPro={effectivePlan === 'PRO'}
         />
       )}
     </div>

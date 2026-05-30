@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
+import { useAuth } from '../context/AuthContext'
 
 function maskPhone(raw) {
   const d = raw.replace(/\D/g, '').slice(0, 11)
@@ -15,6 +16,14 @@ function maskCep(raw) {
   const d = raw.replace(/\D/g, '').slice(0, 8)
   if (d.length <= 5) return d
   return `${d.slice(0, 5)}-${d.slice(5)}`
+}
+
+function WhatsAppIcon({ className = 'w-5 h-5' }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  )
 }
 
 // ── Mini-mapa via OpenStreetMap (Nominatim geocoding, sem API key) ─────────────
@@ -210,6 +219,8 @@ function ClientModal({ clientId, onClose, onSaved }) {
 
 // ── Painel lateral de detalhes ────────────────────────────────────────────────
 function ClientDetail({ clientId, onClose, onEdit }) {
+  const { effectivePlan } = useAuth()
+  const isPro = effectivePlan === 'PRO'
   const [client, setClient] = useState(null)
   const [msgForm, setMsgForm] = useState({ channel: 'email', subject: '', body: '' })
   const [sendLoading, setSendLoading] = useState(false)
@@ -318,26 +329,63 @@ function ClientDetail({ clientId, onClose, onEdit }) {
           )}
 
           {/* Enviar mensagem */}
-          <div>
-            <h3 className="font-semibold text-navy-900 mb-3">Enviar mensagem</h3>
-            <form onSubmit={sendMsg} className="space-y-3">
-              <select value={msgForm.channel} onChange={e => setMsgForm({ ...msgForm, channel: e.target.value })}
-                className={cls}>
-                <option value="email">Email</option>
-                <option value="whatsapp">WhatsApp</option>
-              </select>
-              {msgForm.channel === 'email' && (
-                <input className={cls} placeholder="Assunto" value={msgForm.subject}
-                  onChange={e => setMsgForm({ ...msgForm, subject: e.target.value })} required />
+          <div className="border border-gray-200 rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center gap-2.5">
+                <WhatsAppIcon className="w-5 h-5 text-green-500" />
+                <span className="font-semibold text-navy-900 text-sm">Enviar mensagem</span>
+              </div>
+              {!isPro && (
+                <span className="text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">⭐ Pro</span>
               )}
-              <textarea className={`${cls} resize-none`} rows={4} placeholder="Mensagem..."
-                value={msgForm.body} onChange={e => setMsgForm({ ...msgForm, body: e.target.value })} required />
-              {error && <p className="text-red-500 text-xs">{error}</p>}
-              <button type="submit" disabled={sendLoading}
-                className="w-full py-2 bg-navy-900 text-white rounded-lg text-sm font-medium hover:bg-navy-800 disabled:opacity-50">
-                {sendLoading ? 'Enviando...' : 'Enviar'}
-              </button>
-            </form>
+            </div>
+
+            {isPro ? (
+              <form onSubmit={sendMsg} className="p-4 space-y-3">
+                <div className="flex gap-2">
+                  <button type="button"
+                    onClick={() => setMsgForm(f => ({ ...f, channel: 'email' }))}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors
+                      ${msgForm.channel === 'email' ? 'bg-navy-900 text-white border-navy-900' : 'bg-white text-gray-600 border-gray-200 hover:border-navy-300'}`}>
+                    Email
+                  </button>
+                  <button type="button"
+                    onClick={() => setMsgForm(f => ({ ...f, channel: 'whatsapp' }))}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors flex items-center justify-center gap-2
+                      ${msgForm.channel === 'whatsapp' ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'}`}>
+                    <WhatsAppIcon className="w-4 h-4" /> WhatsApp
+                  </button>
+                </div>
+                {msgForm.channel === 'email' && (
+                  <input className={cls} placeholder="Assunto" value={msgForm.subject}
+                    onChange={e => setMsgForm({ ...msgForm, subject: e.target.value })} required />
+                )}
+                <textarea className={`${cls} resize-none`} rows={4} placeholder="Mensagem..."
+                  value={msgForm.body} onChange={e => setMsgForm({ ...msgForm, body: e.target.value })} required />
+                {error && <p className="text-red-500 text-xs">{error}</p>}
+                <button type="submit" disabled={sendLoading}
+                  className="w-full py-2 bg-navy-900 text-white rounded-xl text-sm font-medium hover:bg-navy-800 disabled:opacity-50">
+                  {sendLoading ? 'Enviando...' : 'Enviar'}
+                </button>
+              </form>
+            ) : (
+              <div className="p-4 space-y-3">
+                <div className="flex gap-2 pointer-events-none opacity-40">
+                  <div className="flex-1 py-2 rounded-xl text-sm font-medium border bg-navy-900 text-white border-navy-900 text-center">Email</div>
+                  <div className="flex-1 py-2 rounded-xl text-sm font-medium border bg-white text-gray-600 border-gray-200 text-center flex items-center justify-center gap-2">
+                    <WhatsAppIcon className="w-4 h-4 text-green-500" /> WhatsApp
+                  </div>
+                </div>
+                <div className="pointer-events-none opacity-40 space-y-2">
+                  <div className="w-full h-9 bg-gray-100 rounded-lg" />
+                  <div className="w-full h-24 bg-gray-100 rounded-lg" />
+                </div>
+                <a href="/my-plan"
+                  className="block w-full py-2.5 text-center rounded-xl text-sm font-semibold bg-amber-400 text-amber-900 hover:bg-amber-500 transition-colors">
+                  ⭐ Disponível no Plano Pro — Fazer upgrade
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>
