@@ -236,13 +236,21 @@ function ClientDetail({ clientId, onClose, onEdit }) {
 
   const sendMsg = async (e) => {
     e.preventDefault()
-    setSendLoading(true); setError('')
-    try {
-      if (msgForm.channel === 'whatsapp') {
-        await api.post('/whatsapp/send', { clientId, message: msgForm.body })
-      } else {
-        await api.post(`/clients/${clientId}/message`, { subject: msgForm.subject, body: msgForm.body })
+    setError('')
+    if (msgForm.channel === 'whatsapp') {
+      if (!client.whatsapp) {
+        setError('Este cliente não tem WhatsApp cadastrado')
+        return
       }
+      const digits = client.whatsapp.replace(/\D/g, '')
+      const intlPhone = digits.startsWith('55') ? digits : `55${digits}`
+      window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msgForm.body)}`, '_blank')
+      setMsgForm(f => ({ ...f, body: '' }))
+      return
+    }
+    setSendLoading(true)
+    try {
+      await api.post(`/clients/${clientId}/message`, { subject: msgForm.subject, body: msgForm.body })
       setMsgForm(f => ({ ...f, subject: '', body: '' }))
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao enviar mensagem')
@@ -376,8 +384,9 @@ function ClientDetail({ clientId, onClose, onEdit }) {
                     value={msgForm.body} onChange={e => setMsgForm({ ...msgForm, body: e.target.value })} required />
                   {error && <p className="text-red-500 text-xs">{error}</p>}
                   <button type="submit" disabled={sendLoading}
-                    className="w-full py-2 bg-navy-900 text-white rounded-xl text-sm font-medium hover:bg-navy-800 disabled:opacity-50">
-                    {sendLoading ? 'Enviando...' : 'Enviar'}
+                    className={`w-full py-2 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors
+                      ${msgForm.channel === 'whatsapp' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-navy-900 text-white hover:bg-navy-800'}`}>
+                    {sendLoading ? 'Enviando...' : msgForm.channel === 'whatsapp' ? 'Abrir no WhatsApp' : 'Enviar'}
                   </button>
                 </form>
               )}
