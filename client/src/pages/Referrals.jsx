@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
-import api from '../lib/api'
+import { supabase } from '../lib/supabase'
+
+const SITE_URL = 'https://agendar.adv.br'
 
 export default function Referrals() {
   const [data, setData] = useState(null)
@@ -8,10 +10,23 @@ export default function Referrals() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    api.get('/referrals')
-      .then(r => setData(r.data))
-      .catch(err => setError(err.response?.data?.error || err.message || 'Erro ao carregar'))
-      .finally(() => setLoading(false))
+    const load = async () => {
+      const { data: code, error: codeErr } = await supabase.rpc('get_or_create_referral_code')
+      if (codeErr) { setError(codeErr.message); setLoading(false); return }
+
+      const { data: stats, error: statsErr } = await supabase.rpc('get_referral_stats')
+      if (statsErr) { setError(statsErr.message); setLoading(false); return }
+
+      const row = stats?.[0]
+      setData({
+        code,
+        link: `${SITE_URL}/?ref=${code}`,
+        total: Number(row?.total ?? 0),
+        rewardMonths: Number(row?.reward_months ?? 0),
+      })
+      setLoading(false)
+    }
+    load()
   }, [])
 
   const copy = () => {
