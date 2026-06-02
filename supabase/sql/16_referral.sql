@@ -3,6 +3,10 @@ ALTER TABLE "Lawyer" ADD COLUMN IF NOT EXISTS "referralCode" TEXT UNIQUE;
 ALTER TABLE "Lawyer" ADD COLUMN IF NOT EXISTS "referredByCode" TEXT;
 ALTER TABLE "Lawyer" ADD COLUMN IF NOT EXISTS "referralRewardedAt" TIMESTAMPTZ;
 
+-- Recria funções do zero para garantir que o tipo de retorno não conflita
+DROP FUNCTION IF EXISTS get_or_create_referral_code() CASCADE;
+DROP FUNCTION IF EXISTS get_referral_stats() CASCADE;
+
 -- RPC: retorna (criando se necessário) o código de indicação do advogado autenticado
 CREATE OR REPLACE FUNCTION get_or_create_referral_code()
 RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
