@@ -4,12 +4,13 @@ import api from '../lib/api'
 export default function Referrals() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     api.get('/referrals')
       .then(r => setData(r.data))
-      .catch(() => {})
+      .catch(err => setError(err.response?.data?.error || err.message || 'Erro ao carregar'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -33,6 +34,12 @@ export default function Referrals() {
         <h1 className="text-2xl font-bold text-navy-900">Programa de Indicação</h1>
         <p className="text-sm text-gray-500 mt-1">Ganhe meses grátis no Plano Pro a cada colega que você indicar</p>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700 font-mono break-all">
+          {error}
+        </div>
+      )}
 
       {/* Como funciona */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
