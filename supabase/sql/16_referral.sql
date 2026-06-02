@@ -14,7 +14,7 @@ DECLARE
   v_id   UUID;
   v_code TEXT;
 BEGIN
-  SELECT id INTO v_id FROM "Lawyer" WHERE auth_id::text = auth.uid()::text;
+  SELECT id INTO v_id FROM "Lawyer" WHERE auth_id = auth.uid();
   IF v_id IS NULL THEN RETURN NULL; END IF;
 
   SELECT "referralCode" INTO v_code FROM "Lawyer" WHERE id = v_id;
@@ -42,7 +42,7 @@ RETURNS TABLE(total BIGINT, reward_months BIGINT) LANGUAGE plpgsql SECURITY DEFI
 DECLARE
   v_code TEXT;
 BEGIN
-  SELECT "referralCode" INTO v_code FROM "Lawyer" WHERE auth_id::text = auth.uid()::text;
+  SELECT "referralCode" INTO v_code FROM "Lawyer" WHERE auth_id = auth.uid();
   IF v_code IS NULL THEN
     RETURN QUERY SELECT 0::BIGINT, 0::BIGINT;
     RETURN;
