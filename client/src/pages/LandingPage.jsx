@@ -187,96 +187,46 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Planos */}
+      {/* Gratuito */}
       <section className="py-20 px-6 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-navy-900 mb-3">Grátis de verdade. Sem asterisco.</h2>
-          <p className="text-center text-gray-500 mb-12 text-lg">
-            Comece sem pagar nada. Faça upgrade quando precisar de mais.
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-navy-900 mb-3">Gratuito de verdade. Para sempre.</h2>
+          <p className="text-gray-500 mb-10 text-lg">
+            Sem planos, sem asterisco, sem cartão. Todas as funcionalidades disponíveis desde o primeiro dia.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* Plano Gratuito */}
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-8 flex flex-col">
-              <div className="mb-6">
-                <span className="inline-block px-3 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold uppercase tracking-wide mb-4">Gratuito</span>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className="text-5xl font-extrabold text-navy-900">R$ 0</span>
-                  <span className="text-gray-400 text-sm mb-2">/mês</span>
-                </div>
-                <p className="text-gray-500 text-sm">Para começar e organizar sua rotina.</p>
-              </div>
-
-              <ul className="space-y-3 text-sm flex-1 mb-8">
-                {[
-                  ['✓', 'Agenda e controle de compromissos', true],
-                  ['✓', 'Cadastro de clientes com histórico', true],
-                  ['✓', 'Agendador público personalizado', true],
-                  ['✓', 'Dashboard e módulo financeiro', true],
-                  ['✓', 'Pagamento via PIX manual', true],
-                  ['✓', 'Listagem no diretório de advogados', true],
-                  ['~', 'Até 20 consultas/mês', false],
-                  ['~', 'Pode exibir anúncios na plataforma', false],
-                  ['✗', 'Cartão via Stripe (integração Pro)', false],
-                  ['✗', 'Integração com Google Agenda', false],
-                  ['✗', 'Videochamada via Google Meet', false],
-                  ['✗', 'Transcrição da reunião por IA', false],
-                  ['✗', 'Confirmação prévia com cliente via WhatsApp', false],
-                ].map(([icon, text, ok]) => (
-                  <li key={text} className={`flex items-start gap-2.5 ${ok ? 'text-gray-700' : icon === '~' ? 'text-amber-600' : 'text-gray-400'}`}>
-                    <span className={`mt-0.5 font-bold flex-shrink-0 ${ok ? 'text-green-500' : icon === '~' ? 'text-amber-500' : 'text-gray-300'}`}>{icon}</span>
-                    {text}
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => openModal('register')}
-                className="w-full py-3 rounded-xl border-2 border-navy-900 text-navy-900 font-bold hover:bg-navy-900 hover:text-white transition-colors"
-              >
-                Criar conta grátis
-              </button>
+          <div className="bg-white rounded-2xl border-2 border-brand-500 p-8 text-left shadow-sm">
+            <div className="flex items-end gap-2 mb-2">
+              <span className="text-6xl font-extrabold text-navy-900">R$ 0</span>
+              <span className="text-gray-400 text-base mb-3">/mês para sempre</span>
             </div>
+            <p className="text-gray-500 text-sm mb-7">Todas as funcionalidades, sem limites de consultas.</p>
 
-            {/* Plano Pro */}
-            <div className="bg-navy-900 rounded-2xl border-2 border-brand-500 p-8 flex flex-col relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-brand-500 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">RECOMENDADO</div>
-              <div className="mb-6">
-                <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-brand-400 text-xs font-semibold uppercase tracking-wide mb-4">Pro</span>
-                <div className="flex items-end gap-1 mb-1">
-                  <span className="text-5xl font-extrabold text-white">R$ 29,90</span>
-                  <span className="text-gray-400 text-sm mb-2">/mês</span>
-                </div>
-                <p className="text-gray-400 text-sm">Para advogados que querem crescer com eficiência.</p>
-              </div>
+            <ul className="space-y-3 text-sm mb-8">
+              {[
+                'Agenda e controle de compromissos ilimitados',
+                'Cadastro de clientes com histórico completo',
+                'Agendador público personalizado com sua marca',
+                'Dashboard e módulo financeiro',
+                'Recebimento de consultas via Asaas (PIX, boleto e cartão)',
+                'Integração com Google Calendar e Google Meet',
+                'Confirmação automática de pagamento via webhook',
+                'Listagem no diretório de advogados',
+                'Notificações por email e WhatsApp',
+              ].map((text) => (
+                <li key={text} className="flex items-start gap-2.5 text-gray-700">
+                  <span className="mt-0.5 font-bold flex-shrink-0 text-green-500">✓</span>
+                  {text}
+                </li>
+              ))}
+            </ul>
 
-              <ul className="space-y-3 text-sm flex-1 mb-8">
-                {[
-                  'Tudo do plano gratuito',
-                  'Consultas ilimitadas',
-                  'Sem anúncios',
-                  'Cartão de crédito/débito via Stripe',
-                  'Integração com Google Agenda',
-                  'Videochamada integrada via Google Meet',
-                  'Transcrição automática da reunião por IA',
-                  'Confirmação prévia com cliente via WhatsApp',
-                ].map((text, i) => (
-                  <li key={text} className="flex items-start gap-2.5 text-gray-200">
-                    <span className={`mt-0.5 font-bold flex-shrink-0 ${i === 0 ? 'text-gray-400' : 'text-brand-400'}`}>✓</span>
-                    {text}
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => openModal('register')}
-                className="w-full py-3 rounded-xl bg-brand-500 text-white font-bold hover:bg-brand-400 transition-colors"
-              >
-                Começar com o Pro
-              </button>
-            </div>
-
+            <button
+              onClick={() => openModal('register')}
+              className="w-full py-3.5 rounded-xl bg-navy-900 text-white font-bold hover:bg-navy-800 transition-colors text-base"
+            >
+              Criar conta grátis →
+            </button>
           </div>
         </div>
       </section>

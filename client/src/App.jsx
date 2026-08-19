@@ -13,7 +13,6 @@ import Clients from './pages/Clients'
 import Finance from './pages/Finance'
 import Settings from './pages/Settings'
 import AdminPage from './pages/AdminPage'
-import MyPlan from './pages/MyPlan'
 import Referrals from './pages/Referrals'
 import TermsPage from './pages/TermsPage'
 import PrivacyPage from './pages/PrivacyPage'
@@ -48,7 +47,6 @@ export default function App() {
             <Route path="/finance"      element={<Finance />} />
             <Route path="/settings"     element={<Settings />} />
             <Route path="/admin"        element={<AdminPage />} />
-            <Route path="/my-plan"      element={<MyPlan />} />
             <Route path="/referrals"    element={<Referrals />} />
           </Route>
           <Route path="/advogados" element={<Directory />} />

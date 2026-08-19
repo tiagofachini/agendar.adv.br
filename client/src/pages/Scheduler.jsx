@@ -5,8 +5,6 @@ import {
   eachDayOfInterval, getDay, isSameDay, isToday, isBefore, startOfDay,
 } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { publicApi } from '../lib/api'
 import { supabase } from '../lib/supabase'
 
@@ -111,47 +109,6 @@ function Calendar({ workDays, selectedDate, onSelect, currentMonth, onMonthChang
   )
 }
 
-function StripePaymentForm({ onSuccess, onError, consultaValor, brand1 }) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [paying, setPaying] = useState(false)
-  const [err, setErr] = useState('')
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!stripe || !elements) return
-    setPaying(true); setErr('')
-    try {
-      const { error } = await stripe.confirmPayment({
-        elements,
-        confirmParams: { return_url: window.location.href },
-        redirect: 'if_required',
-      })
-      if (error) {
-        setErr(error.message || 'Erro ao processar pagamento.')
-        onError?.(error.message)
-      } else {
-        onSuccess()
-      }
-    } catch (e) {
-      setErr(e?.message || 'Erro ao inicializar pagamento. Tente recarregar a página.')
-    } finally {
-      setPaying(false)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement options={{ layout: 'tabs' }} />
-      {err && <p className="text-red-500 text-sm">{err}</p>}
-      <button type="submit" disabled={!stripe || paying}
-        className="w-full py-3.5 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
-        style={{ backgroundColor: brand1 }}>
-        {paying ? 'Processando...' : `Pagar ${consultaValor ?? ''} →`}
-      </button>
-    </form>
-  )
-}
 
 export default function Scheduler() {
   const { slug } = useParams()
@@ -171,10 +128,6 @@ export default function Scheduler() {
   const [interimText, setInterimText] = useState('')
   const [micError, setMicError] = useState('')
   const [detectingSpecialty, setDetectingSpecialty] = useState(false)
-  const [clientSecret, setClientSecret] = useState(null)
-  const [stripePromise, setStripePromise] = useState(null)
-  const [pendingAppt, setPendingAppt] = useState(null)
-  const [creatingIntent, setCreatingIntent] = useState(false)
   const [monthBlocked, setMonthBlocked] = useState(false)
   const recognitionRef = useRef(null)
   const baseDescRef = useRef('')
@@ -295,7 +248,7 @@ export default function Scheduler() {
     }
   }
 
-  const handleFreeBook = async () => {
+  const handleBook = async () => {
     setBooking(true); setError('')
     try {
       const specialty = form.specialty || 'Consultoria Jurídica Geral'
@@ -308,67 +261,16 @@ export default function Scheduler() {
         selectedDate: format(selectedDate, 'yyyy-MM-dd'),
         selectedSlot,
       })
-      setResult({ ...data, free: true, specialty })
+      if (data.asaasPaymentUrl) {
+        window.open(data.asaasPaymentUrl, '_blank', 'noopener,noreferrer')
+      }
+      setResult({ ...data, specialty })
       setStep(4)
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao processar. Verifique os dados e tente novamente.')
     } finally {
       setBooking(false)
     }
-  }
-
-  const handlePixBook = async () => {
-    setBooking(true); setError('')
-    try {
-      const specialty = form.specialty || 'Consultoria Jurídica Geral'
-      const { data } = await publicApi.post(`/scheduler/${slug}/book`, {
-        clientName: form.clientName,
-        clientEmail: form.clientEmail,
-        clientWhatsapp: form.clientWhatsapp,
-        specialty,
-        description: form.description,
-        selectedDate: format(selectedDate, 'yyyy-MM-dd'),
-        selectedSlot,
-        pixPayment: true,
-      })
-      setResult({ ...data, pixPending: true, specialty })
-      setStep(4)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao processar. Verifique os dados e tente novamente.')
-    } finally {
-      setBooking(false)
-    }
-  }
-
-  const handleGoToPayment = async () => {
-    setCreatingIntent(true); setError('')
-    try {
-      const specialty = form.specialty || 'Consultoria Jurídica Geral'
-      const { data } = await publicApi.post('/stripe-connect/checkout', {
-        slug,
-        clientName: form.clientName,
-        clientEmail: form.clientEmail,
-        clientWhatsapp: form.clientWhatsapp,
-        specialty,
-        description: form.description,
-        selectedDate: format(selectedDate, 'yyyy-MM-dd'),
-        selectedSlot,
-      })
-      setClientSecret(data.clientSecret)
-      setStripePromise(loadStripe(data.publishableKey))
-      setPendingAppt({ appointmentId: data.appointmentId, amount: data.amount, meetingLink: data.meetingLink })
-      setForm(f => ({ ...f, specialty }))
-      setStep(3)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao iniciar pagamento. Tente novamente.')
-    } finally {
-      setCreatingIntent(false)
-    }
-  }
-
-  const handlePaymentSuccess = () => {
-    setResult({ ...pendingAppt, paid: true })
-    setStep(4)
   }
 
   if (notFound) return (
@@ -398,8 +300,7 @@ export default function Scheduler() {
     ? `R$ ${((effectiveRate / 60) * (info.slotDuration ?? 60)).toFixed(2).replace('.', ',')}`
     : null
 
-  const showPaymentStep = info.hasStripe && !!(effectiveRate ?? baseHourlyRate)
-  const showPixStep = !!(info.pixKey) && !info.hasStripe && !!(effectiveRate ?? baseHourlyRate)
+  const showPaymentStep = info.hasAsaas && !!(effectiveRate ?? baseHourlyRate)
 
   const addressParts = [
     info.street && info.number ? `${info.street}, ${info.number}` : info.street,
@@ -407,7 +308,7 @@ export default function Scheduler() {
   ].filter(Boolean)
   const address = addressParts.join(' — ')
 
-  const confirmationLocation = (result?.meetingLink || pendingAppt?.meetingLink) || address || null
+  const confirmationLocation = result?.meetingLink || address || null
   const confirmationSpecialty = result?.specialty || form.specialty || 'Consultoria Jurídica Geral'
 
   return (
@@ -554,21 +455,14 @@ export default function Scheduler() {
                     <li className="flex gap-2">
                       <span className="font-bold text-navy-900">4.</span>
                       {showPaymentStep
-                        ? `Finalize o pagamento de ${consultaValor} para garantir o horário`
-                        : showPixStep
-                          ? `Realize o PIX de ${consultaValor} para confirmar o horário`
-                          : 'Confirme o agendamento (pagamento acordado com o advogado)'}
+                        ? `Finalize o pagamento de ${consultaValor} via Asaas para garantir o horário`
+                        : 'Confirme o agendamento (pagamento combinado com o advogado)'}
                     </li>
                     <li className="flex gap-2"><span className="font-bold text-navy-900">5.</span> Receba a confirmação com todos os detalhes</li>
                   </ol>
                   {showPaymentStep && (
                     <p className="mt-3 text-xs text-blue-700 font-medium">
-                      O pagamento é processado com segurança via Stripe. Aceitamos cartão de crédito e débito.
-                    </p>
-                  )}
-                  {showPixStep && (
-                    <p className="mt-3 text-xs text-amber-700 font-medium">
-                      Pagamento via PIX direto para o advogado. O horário é confirmado após a verificação do pagamento.
+                      O pagamento é processado com segurança via Asaas. Aceitamos PIX, boleto e cartão de crédito.
                     </p>
                   )}
                 </div>
@@ -744,43 +638,22 @@ export default function Scheduler() {
               <div className="flex gap-3 mt-6">
                 <button onClick={() => setStep(1)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
                 <button
-                  onClick={showPaymentStep ? handleGoToPayment : () => setStep(3)}
-                  disabled={creatingIntent || detectingSpecialty || !form.description}
+                  onClick={() => setStep(3)}
+                  disabled={detectingSpecialty || !form.description}
                   className="flex-1 py-3 rounded-xl font-bold disabled:opacity-50 transition-colors"
                   style={{ backgroundColor: brand2, color: brand1 }}>
-                  {creatingIntent ? 'Aguarde...' : showPaymentStep ? 'Ir para pagamento →' : 'Continuar →'}
+                  Continuar →
                 </button>
               </div>
               {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
             </div>
           )}
 
-          {step === 3 && showPaymentStep && clientSecret && (
+          {step === 3 && (
             <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
-              {consultaValor && (
-                <p className="text-sm text-gray-500 mb-5">
-                  Valor da consulta: <span className="font-semibold text-navy-900">{consultaValor}</span>
-                </p>
-              )}
-              <Elements stripe={stripePromise} options={{ clientSecret, locale: 'pt-BR' }}>
-                <StripePaymentForm
-                  onSuccess={handlePaymentSuccess}
-                  onError={setError}
-                  consultaValor={consultaValor}
-                  brand1={brand1}
-                />
-              </Elements>
-              <button onClick={() => { setStep(2); setClientSecret(null); setStripePromise(null); setPendingAppt(null) }}
-                className="mt-4 w-full py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 font-medium text-sm">
-                ← Voltar
-              </button>
-            </div>
-          )}
-
-          {step === 3 && showPixStep && (
-            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento via PIX</h2>
+              <h2 className="font-bold text-navy-900 mb-1 text-lg">
+                {showPaymentStep ? 'Pagamento' : 'Confirmar agendamento'}
+              </h2>
               <p className="text-sm text-gray-500 mb-5">
                 {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
               </p>
@@ -792,63 +665,32 @@ export default function Scheduler() {
                 </div>
               )}
 
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-5 space-y-3">
-                <p className="text-amber-800 text-sm font-semibold">Chave PIX para pagamento:</p>
-                <div className="bg-white border border-amber-200 rounded-lg px-4 py-3 text-center">
-                  <p className="font-mono font-bold text-navy-900 text-base break-all select-all">{info.pixKey}</p>
+              {showPaymentStep ? (
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
+                  <p className="text-blue-800 text-sm font-medium">
+                    💳 Ao confirmar, você será redirecionado para a página de pagamento seguro via Asaas.
+                  </p>
+                  <p className="text-blue-700 text-xs mt-1">
+                    Aceitamos PIX, boleto bancário e cartão de crédito. O horário é confirmado automaticamente após aprovação do pagamento.
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(info.pixKey)}
-                  className="w-full py-2 rounded-lg border border-amber-300 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors">
-                  Copiar chave PIX
-                </button>
-                <p className="text-amber-700 text-xs">
-                  Após realizar o PIX, clique em "Confirmar agendamento". O advogado verificará o recebimento e confirmará seu horário.
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-                <button onClick={handlePixBook} disabled={booking}
-                  className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
-                  style={{ backgroundColor: brand1 }}>
-                  {booking ? 'Aguarde...' : 'Confirmar agendamento →'}
-                </button>
-              </div>
-              {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
-            </div>
-          )}
-
-          {step === 3 && !showPaymentStep && !showPixStep && (
-            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6">
-              <h2 className="font-bold text-navy-900 mb-1 text-lg">Pagamento</h2>
-              <p className="text-sm text-gray-500 mb-5">
-                {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })} às {selectedSlot} com {info.lawyerName}
-              </p>
-
-              {consultaValor && (
-                <div className="bg-gray-50 rounded-xl p-4 mb-4 flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Valor estimado da consulta</span>
-                  <span className="text-xl font-bold text-navy-900">{consultaValor}</span>
+              ) : (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-5">
+                  <p className="text-amber-800 text-sm font-medium">
+                    💬 O advogado realizará a cobrança diretamente após a consulta.
+                  </p>
+                  <p className="text-amber-700 text-xs mt-1">
+                    Você receberá um email com os detalhes do agendamento.
+                  </p>
                 </div>
               )}
 
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6">
-                <p className="text-amber-800 text-sm font-medium">
-                  💬 O advogado realizará a cobrança diretamente após a consulta.
-                </p>
-                <p className="text-amber-700 text-xs mt-1">
-                  Você receberá um email com os detalhes do agendamento.
-                </p>
-              </div>
-
               <div className="flex gap-3">
                 <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-                <button onClick={handleFreeBook} disabled={booking}
+                <button onClick={handleBook} disabled={booking}
                   className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
                   style={{ backgroundColor: brand1 }}>
-                  {booking ? 'Aguarde...' : 'Confirmar →'}
+                  {booking ? 'Aguarde...' : showPaymentStep ? 'Ir para pagamento →' : 'Confirmar →'}
                 </button>
               </div>
               {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
@@ -859,16 +701,11 @@ export default function Scheduler() {
             <div className="max-w-md mx-auto space-y-4">
               <div className="bg-white rounded-2xl shadow-sm p-8">
                 <div className="text-center mb-5">
-                  <div className="text-5xl mb-3">{result.paid ? '✅' : result.pixPending ? '⏳' : '✅'}</div>
-                  {result.paid ? (
+                  <div className="text-5xl mb-3">{result.pending ? '⏳' : '✅'}</div>
+                  {result.pending ? (
                     <>
-                      <h2 className="text-xl font-bold text-navy-900">Pagamento confirmado!</h2>
-                      <p className="text-gray-500 text-sm mt-1">Seu agendamento está garantido.</p>
-                    </>
-                  ) : result.pixPending ? (
-                    <>
-                      <h2 className="text-xl font-bold text-navy-900">Agendamento recebido!</h2>
-                      <p className="text-gray-500 text-sm mt-1">Realize o PIX para confirmar seu horário.</p>
+                      <h2 className="text-xl font-bold text-navy-900">Aguardando pagamento</h2>
+                      <p className="text-gray-500 text-sm mt-1">Sua consulta será confirmada após a aprovação do pagamento.</p>
                     </>
                   ) : (
                     <>
@@ -878,24 +715,16 @@ export default function Scheduler() {
                   )}
                 </div>
 
-                {result.paid ? (
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
-                    <p className="text-green-700 font-semibold text-sm">✓ Pagamento aprovado e horário garantido!</p>
-                  </div>
-                ) : result.pixPending ? (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 space-y-2">
-                    <p className="text-amber-800 font-semibold text-sm">Realize o PIX para garantir o horário:</p>
-                    <div className="bg-white border border-amber-200 rounded-lg px-4 py-3 text-center">
-                      <p className="font-mono font-bold text-navy-900 break-all select-all">{info.pixKey}</p>
-                    </div>
-                    {consultaValor && <p className="text-amber-700 text-sm text-center font-medium">Valor: {consultaValor}</p>}
-                    <button
-                      type="button"
-                      onClick={() => navigator.clipboard.writeText(info.pixKey)}
-                      className="w-full py-2 rounded-lg border border-amber-300 text-amber-800 text-xs font-medium hover:bg-amber-100 transition-colors">
-                      Copiar chave PIX
-                    </button>
-                    <p className="text-amber-600 text-xs text-center">Após o pagamento, o advogado confirmará e você receberá um email.</p>
+                {result.pending ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 space-y-3">
+                    <p className="text-amber-800 font-semibold text-sm">⏳ Aguardando confirmação do pagamento</p>
+                    <p className="text-amber-700 text-xs">Você receberá um email com todos os detalhes da consulta assim que o pagamento for aprovado.</p>
+                    {result.asaasPaymentUrl && (
+                      <a href={result.asaasPaymentUrl} target="_blank" rel="noopener noreferrer"
+                        className="block w-full py-2.5 rounded-lg text-center bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
+                        Ir para pagamento →
+                      </a>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center mb-5">
@@ -923,24 +752,24 @@ export default function Scheduler() {
                     <span className="text-gray-500">Área</span>
                     <span className="font-semibold text-navy-900">{confirmationSpecialty}</span>
                   </div>
-                  {(result.meetingLink || pendingAppt?.meetingLink) && (
+                  {result.meetingLink && (
                     <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
                       <span className="text-gray-500">Reunião online</span>
-                      <a href={result.meetingLink || pendingAppt?.meetingLink} target="_blank" rel="noopener noreferrer"
+                      <a href={result.meetingLink} target="_blank" rel="noopener noreferrer"
                         className="font-semibold text-blue-600 hover:underline text-right max-w-[60%] break-all">
                         Abrir link →
                       </a>
                     </div>
                   )}
-                  {!(result.meetingLink || pendingAppt?.meetingLink) && address && (
+                  {!result.meetingLink && address && (
                     <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
                       <span className="text-gray-500">Local</span>
                       <span className="font-semibold text-navy-900 text-right max-w-[60%]">{address}</span>
                     </div>
                   )}
-                  {consultaValor && result.paid && (
+                  {consultaValor && !result.pending && (
                     <div className="flex justify-between text-sm border-t border-gray-200 pt-2.5 mt-1">
-                      <span className="text-gray-500">Valor pago</span>
+                      <span className="text-gray-500">Valor</span>
                       <span className="font-bold text-navy-900">{consultaValor}</span>
                     </div>
                   )}

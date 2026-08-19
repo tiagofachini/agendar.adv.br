@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
   try {
     if (req.method === 'GET') {
       const [lawyerRes, sRes] = await Promise.all([
-        sb.from('Lawyer').select('id,name,email,whatsapp,avatarUrl,stripeAccountId,stripeOnboardingComplete,stripeChargesEnabled').maybeSingle(),
+        sb.from('Lawyer').select('id,name,email,whatsapp,avatarUrl').maybeSingle(),
         sb.from('LawyerSettings').select('*').maybeSingle(),
       ])
       if (lawyerRes.error) throw lawyerRes.error
@@ -65,10 +65,7 @@ Deno.serve(async (req) => {
             hourlyRate: s?.hourlyRate ?? '',
           },
           financial: {
-            stripeAccountId: l?.stripeAccountId ?? null,
-            stripeOnboardingComplete: l?.stripeOnboardingComplete ?? false,
-            stripeChargesEnabled: l?.stripeChargesEnabled ?? false,
-            pixKey: s?.pixKey ?? '',
+            asaasConnected: !!(s?.asaasApiKey),
           },
           alerts: {
             newBookingByEmail: s?.newBookingByEmail ?? true,
@@ -149,8 +146,8 @@ Deno.serve(async (req) => {
       }
 
       if (section === 'financial') {
-        const { pixKey } = await req.json()
-        const error = await upsertSettings({ pixKey: pixKey?.trim() || null })
+        const { asaasApiKey } = await req.json()
+        const error = await upsertSettings({ asaasApiKey: asaasApiKey?.trim() || null })
         if (error) throw error
         return Response.json({ ok: true }, { headers: cors })
       }

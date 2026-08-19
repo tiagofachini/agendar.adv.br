@@ -8,24 +8,35 @@ const cors = {
 
 const RESEND_URL = 'https://api.resend.com/emails'
 const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
+const ASAAS_BASE = 'https://www.asaas.com/api/v3'
+
+async function asaasReq(apiKey: string, method: string, path: string, body?: object) {
+  const res = await fetch(`${ASAAS_BASE}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', access_token: apiKey },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data?.errors?.[0]?.description || `Asaas ${res.status}`)
+  return data
+}
 
 function clientEmailHtml(p: {
   lawyerName: string; dateStr: string; timeStr: string
   specialty: string; address: string; meetingLink: string | null
-  pixKey?: string | null; pixAmount?: string | null
+  asaasPaymentUrl?: string | null; amountStr?: string | null
 }) {
   const locationRow = p.meetingLink
     ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Reunião online</td><td style="font-weight:600"><a href="${p.meetingLink}" style="color:#2563eb">${p.meetingLink}</a></td></tr>`
     : p.address ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Local</td><td style="font-weight:600">${p.address}</td></tr>` : ''
 
-  const statusBlock = p.pixKey
-    ? `<p style="color:#d97706;font-weight:600">⏳ Agendamento recebido! Para confirmar seu horário, realize o pagamento via PIX.</p>
-       <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:12px 0">
-         <p style="margin:0 0 4px;color:#92400e;font-size:13px">Chave PIX:</p>
-         <p style="margin:0;font-weight:700;font-size:16px;color:#78350f">${p.pixKey}</p>
-         ${p.pixAmount ? `<p style="margin:8px 0 0;color:#92400e;font-size:14px">Valor: <strong>${p.pixAmount}</strong></p>` : ''}
+  const statusBlock = p.asaasPaymentUrl
+    ? `<p style="color:#d97706;font-weight:600">⏳ Agendamento recebido! Para confirmar seu horário, realize o pagamento.</p>
+       <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px;margin:12px 0;text-align:center">
+         ${p.amountStr ? `<p style="margin:0 0 12px;color:#92400e;font-size:15px">Valor: <strong>${p.amountStr}</strong></p>` : ''}
+         <a href="${p.asaasPaymentUrl}" style="display:inline-block;background:#2563eb;color:white;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px">Pagar agora →</a>
        </div>
-       <p style="color:#6b7280;font-size:13px">Você receberá um email de confirmação assim que o advogado verificar o pagamento.</p>`
+       <p style="color:#6b7280;font-size:13px">Você receberá um email de confirmação assim que o pagamento for aprovado.</p>`
     : `<p style="color:#16a34a;font-weight:600">✓ Agendamento confirmado! Você receberá os detalhes em breve.</p>`
 
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
@@ -51,17 +62,17 @@ function clientEmailHtml(p: {
 function lawyerEmailHtml(p: {
   clientName: string; clientEmail: string; clientWhatsapp: string
   dateStr: string; timeStr: string; specialty: string; description: string; meetingLink: string | null
-  pixAmount?: string | null
+  asaasPending?: boolean; amountStr?: string | null
 }) {
   const locationRow = p.meetingLink
     ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Reunião online</td><td style="font-weight:600"><a href="${p.meetingLink}">${p.meetingLink}</a></td></tr>`
     : ''
 
-  const pixAlert = p.pixAmount
+  const pixAlert = p.asaasPending
     ? `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-top:12px">
-         <p style="margin:0;color:#854d0e;font-size:13px;font-weight:600">⚠️ Aguardando confirmação de pagamento PIX</p>
-         <p style="margin:4px 0 0;color:#92400e;font-size:12px">Valor esperado: ${p.pixAmount}</p>
-         <p style="margin:4px 0 0;color:#92400e;font-size:12px">Confirme o recebimento no painel de Compromissos após verificar o PIX.</p>
+         <p style="margin:0;color:#854d0e;font-size:13px;font-weight:600">⏳ Aguardando confirmação de pagamento via Asaas</p>
+         ${p.amountStr ? `<p style="margin:4px 0 0;color:#92400e;font-size:12px">Valor: ${p.amountStr}</p>` : ''}
+         <p style="margin:4px 0 0;color:#92400e;font-size:12px">O agendamento será confirmado automaticamente após aprovação do pagamento.</p>
        </div>`
     : ''
 
@@ -282,7 +293,7 @@ Deno.serve(async (req) => {
 
     const { data: lawyerRow } = await sb
       .from('Lawyer')
-      .select('id,name,email,whatsapp,stripeAccountId,stripeChargesEnabled')
+      .select('id,name,email,whatsapp')
       .eq('id', s.lawyerId)
       .maybeSingle()
 
@@ -292,12 +303,11 @@ Deno.serve(async (req) => {
 
     const lawyer = lawyerRow as {
       id: string; name: string; email: string; whatsapp: string
-      stripeAccountId: string | null; stripeChargesEnabled: boolean
     }
 
     if (req.method === 'GET' && !action) {
       const hourlyRate = parseFloat(s.hourlyRate ?? '0')
-      const hasStripe = !!(lawyer.stripeChargesEnabled && lawyer.stripeAccountId && hourlyRate > 0)
+      const hasAsaas = !!(s.asaasApiKey && hourlyRate > 0)
 
       type DayConfig = { day: number; active: boolean }
       const workDays = s.workSchedule && Array.isArray(s.workSchedule)
@@ -315,8 +325,7 @@ Deno.serve(async (req) => {
           highlightMessage: s.highlightMessage ?? null,
           hourlyRate: s.hourlyRate ?? null,
           specialtyRates: s.specialtyRates ?? [],
-          hasStripe,
-          pixKey: s.pixKey ?? null,
+          hasAsaas,
           logoUrl: s.logoUrl ?? null,
           street: s.street ?? '',
           number: s.number ?? '',
@@ -434,23 +443,21 @@ Deno.serve(async (req) => {
 
     if (req.method === 'POST' && action === 'book') {
       const body = await req.json()
-      const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot, pixPayment } = body
+      const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot } = body
 
       if (!clientName || !clientEmail || !specialty || !selectedDate || !selectedSlot) {
         return Response.json({ error: 'Campos obrigatórios ausentes' }, { status: 400, headers: cors })
       }
 
-      if (pixPayment && !s.pixKey) {
-        return Response.json({ error: 'Chave PIX não configurada.' }, { status: 400, headers: cors })
-      }
+      const hourlyRate = parseFloat(s.hourlyRate ?? '0')
+      const hasAsaas = !!(s.asaasApiKey && hourlyRate > 0)
 
       type SpecialtyRate = { specialty: string; rate: number | string }
       const specialtyRatesList: SpecialtyRate[] = Array.isArray(s.specialtyRates) ? s.specialtyRates : []
-      const matchedPixRate = specialtyRatesList.find((r: SpecialtyRate) => r.specialty === specialty)
-      const baseHourlyRatePix = parseFloat(s.hourlyRate ?? '0')
-      const effectiveHourlyRate = matchedPixRate ? parseFloat(String(matchedPixRate.rate)) : baseHourlyRatePix
+      const matchedRate = specialtyRatesList.find((r: SpecialtyRate) => r.specialty === specialty)
+      const effectiveHourlyRate = matchedRate ? parseFloat(String(matchedRate.rate)) : hourlyRate
       const amountBRL = effectiveHourlyRate > 0 ? (effectiveHourlyRate * (s.slotDuration ?? 60)) / 60 : 0
-      const pixAmountStr = amountBRL > 0 ? `R$ ${amountBRL.toFixed(2).replace('.', ',')}` : null
+      const amountStr = amountBRL > 0 ? `R$ ${amountBRL.toFixed(2).replace('.', ',')}` : null
 
       const { data: existing } = await sb
         .from('Client')
@@ -509,7 +516,36 @@ Deno.serve(async (req) => {
         meetingLink = s.customMeetingUrl?.trim() || `https://meet.jit.si/agendaradv${apptId.replace(/-/g, '')}`
       }
 
-      const apptStatus = pixPayment ? 'PENDING_PAYMENT' : 'CONFIRMED'
+      // Create Asaas payment if configured
+      let asaasPaymentUrl: string | null = null
+      let asaasPaymentId: string | null = null
+      if (hasAsaas && amountBRL > 0) {
+        const custList = await asaasReq(s.asaasApiKey, 'GET', `/customers?email=${encodeURIComponent(clientEmail)}&limit=1`)
+        let asaasCustomerId: string
+        if (custList.data?.length > 0) {
+          asaasCustomerId = custList.data[0].id
+        } else {
+          const newCust = await asaasReq(s.asaasApiKey, 'POST', '/customers', {
+            name: clientName,
+            email: clientEmail,
+            ...(clientWhatsapp ? { mobilePhone: clientWhatsapp.replace(/\D/g, '') } : {}),
+          })
+          asaasCustomerId = newCust.id
+        }
+        const dueDate = selectedDate
+        const pmt = await asaasReq(s.asaasApiKey, 'POST', '/payments', {
+          customer: asaasCustomerId,
+          billingType: 'UNDEFINED',
+          value: amountBRL,
+          dueDate,
+          description: `Consulta jurídica: ${specialty} — ${lawyer.name}`,
+          externalReference: apptId,
+        })
+        asaasPaymentUrl = pmt.invoiceUrl ?? null
+        asaasPaymentId = pmt.id ?? null
+      }
+
+      const apptStatus = (hasAsaas && amountBRL > 0) ? 'PENDING_PAYMENT' : 'CONFIRMED'
 
       const { error: apptErr } = await sb
         .from('Appointment')
@@ -532,6 +568,22 @@ Deno.serve(async (req) => {
         })
       if (apptErr) throw apptErr
 
+      if (asaasPaymentId) {
+        await sb.from('Payment').insert({
+          id: crypto.randomUUID(),
+          lawyerId: lawyer.id,
+          clientId,
+          appointmentId: apptId,
+          amount: amountBRL,
+          status: 'PENDING',
+          asaasId: asaasPaymentId,
+          asaasUrl: asaasPaymentUrl,
+          dueDate: new Date(`${selectedDate}T23:59:59-03:00`).toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+      }
+
       const RESEND_KEY = Deno.env.get('RESEND_API_KEY_AGENDAR')
       if (RESEND_KEY) {
         try {
@@ -543,46 +595,48 @@ Deno.serve(async (req) => {
             timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit',
           })
           const address = [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
+          const isPending = apptStatus === 'PENDING_PAYMENT'
           await sendEmail(
             RESEND_KEY, clientEmail,
             `Agendamento recebido — ${lawyer.name}`,
             clientEmailHtml({
               lawyerName: lawyer.name, dateStr, timeStr, specialty, address, meetingLink,
-              pixKey: pixPayment ? (s.pixKey ?? null) : null,
-              pixAmount: pixPayment ? pixAmountStr : null,
+              asaasPaymentUrl: isPending ? asaasPaymentUrl : null,
+              amountStr: isPending ? amountStr : null,
             })
           )
           if (s.newBookingByEmail !== false && lawyer.email) {
             await sendEmail(
               RESEND_KEY, lawyer.email,
-              pixPayment ? `Novo agendamento (aguardando PIX) — ${clientName}` : `Novo agendamento — ${clientName}`,
+              isPending ? `Novo agendamento (aguardando pagamento) — ${clientName}` : `Novo agendamento — ${clientName}`,
               lawyerEmailHtml({
                 clientName, clientEmail, clientWhatsapp, dateStr, timeStr, specialty, description, meetingLink,
-                pixAmount: pixPayment ? pixAmountStr : null,
+                asaasPending: isPending,
+                amountStr: isPending ? amountStr : null,
               })
             )
           }
           if (s.newBookingByWhatsapp && lawyer.whatsapp) {
-            const pixNote = pixPayment && pixAmountStr ? `\n💸 PIX pendente: ${pixAmountStr}` : ''
+            const pmtNote = isPending && amountStr ? `\n💸 Aguardando pagamento: ${amountStr}` : ''
             await sendWhatsApp(
               lawyer.whatsapp,
-              `📅 Novo agendamento!\n\nCliente: ${clientName}\nData: ${dateStr}\nHorário: ${timeStr}\nÁrea: ${specialty}${clientWhatsapp ? `\nWhatsApp: ${clientWhatsapp}` : ''}${pixNote}`
+              `📅 Novo agendamento!\n\nCliente: ${clientName}\nData: ${dateStr}\nHorário: ${timeStr}\nÁrea: ${specialty}${clientWhatsapp ? `\nWhatsApp: ${clientWhatsapp}` : ''}${pmtNote}`
             )
           }
           if (clientWhatsapp) {
-            const pixWaNote = pixPayment && s.pixKey
-              ? `\n\n💸 Para confirmar, realize o PIX:\nChave: ${s.pixKey}${pixAmountStr ? `\nValor: ${pixAmountStr}` : ''}`
+            const pmtWaNote = isPending && asaasPaymentUrl
+              ? `\n\n💳 Para confirmar, realize o pagamento:\n${asaasPaymentUrl}`
               : ''
             await sendWhatsApp(
               clientWhatsapp,
-              `${pixPayment ? '⏳' : '✅'} Agendamento ${pixPayment ? 'recebido!' : 'confirmado!'}\n\nOlá, ${clientName}! Sua consulta foi ${pixPayment ? 'recebida e aguarda confirmação de pagamento' : 'agendada com sucesso'}.\n\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}\n⚖️ Área: ${specialty}${meetingLink ? `\n🔗 Reunião: ${meetingLink}` : address ? `\n📍 Local: ${address}` : ''}${pixWaNote}\n\n${lawyer.name}`
+              `${isPending ? '⏳' : '✅'} Agendamento ${isPending ? 'recebido!' : 'confirmado!'}\n\nOlá, ${clientName}! Sua consulta foi ${isPending ? 'recebida e aguarda confirmação de pagamento' : 'agendada com sucesso'}.\n\n📅 Data: ${dateStr}\n⏰ Horário: ${timeStr}\n⚖️ Área: ${specialty}${meetingLink ? `\n🔗 Reunião: ${meetingLink}` : address ? `\n📍 Local: ${address}` : ''}${pmtWaNote}\n\n${lawyer.name}`
             )
           }
         } catch (_) {}
       }
 
       return Response.json(
-        { appointmentId: apptId, meetingLink },
+        { appointmentId: apptId, meetingLink, asaasPaymentUrl, amount: amountBRL > 0 ? amountBRL : null, pending: apptStatus === 'PENDING_PAYMENT' },
         { status: 201, headers: cors }
       )
     }

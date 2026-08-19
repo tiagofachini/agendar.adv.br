@@ -10,7 +10,6 @@ const NAV = [
   { to: '/clients',      icon: '👥', label: 'Clientes' },
   { to: '/finance',      icon: '💰', label: 'Financeiro' },
   { to: '/settings',     icon: '⚙️', label: 'Configurações' },
-  { to: '/my-plan',      icon: '⭐', label: 'Meu Plano' },
   { to: '/referrals',   icon: '🎁', label: 'Indicações' },
 ]
 

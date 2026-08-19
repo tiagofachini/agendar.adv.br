@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import ProGate from '../components/ProGate'
 import api from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
 const TABS = [
-  { key: 'google',    label: '🔗 Google', pro: true },
+  { key: 'google',    label: '🔗 Google' },
   { key: 'profile',   label: '🏢 Perfil' },
   { key: 'scheduler', label: '📋 Agendador' },
   { key: 'calendar',  label: '📅 Agenda' },
@@ -851,80 +850,46 @@ function CalendarSection({ data, onSaved }) {
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-2">
-          O valor por especialidade tem precedência sobre o valor padrão. Deixe em branco para não cobrar automaticamente via Stripe.
+          O valor por especialidade tem precedência sobre o valor padrão. Deixe em branco para não cobrar automaticamente via Asaas.
         </p>
       </Field>
     </Section>
   )
 }
 
-function FinancialSection({ data, banner, onSaved }) {
-  const { effectivePlan } = useAuth()
+const ASAAS_WEBHOOK_URL = 'https://nfgexlsfmyfypueslzxo.supabase.co/functions/v1/asaas-webhook'
+
+function FinancialSection({ data, onSaved }) {
   const f = data.financial || {}
-  const [onboarding, setOnboarding] = useState(false)
-  const [disconnecting, setDisconnecting] = useState(false)
+  const [apiKey, setApiKey] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
-  const [pixKey, setPixKey] = useState(f.pixKey ?? '')
-  const [pixSaving, setPixSaving] = useState(false)
-  const [pixSaved, setPixSaved] = useState(false)
-  const [pixError, setPixError] = useState('')
 
-  const handleSavePix = async () => {
-    setPixSaving(true); setPixSaved(false); setPixError('')
+  const handleSave = async () => {
+    if (!apiKey.trim()) return
+    setSaving(true); setSaved(false); setError('')
     try {
-      await api.put('/settings/financial', { pixKey })
-      setPixSaved(true)
+      await api.put('/settings/financial', { asaasApiKey: apiKey })
+      setSaved(true)
+      setApiKey('')
       onSaved?.()
-      setTimeout(() => setPixSaved(false), 3000)
+      setTimeout(() => setSaved(false), 3000)
     } catch (err) {
-      setPixError(errMsg(err))
+      setError(errMsg(err))
     }
-    setPixSaving(false)
+    setSaving(false)
   }
-
-  const startOnboarding = async () => {
-    setOnboarding(true); setError('')
-    try {
-      const { data: res } = await api.post('/stripe-connect/onboard')
-      if (res.url) window.location.href = res.url
-    } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao iniciar conexão com Stripe.')
-    } finally {
-      setOnboarding(false)
-    }
-  }
-
-  const handleDisconnect = async () => {
-    if (!window.confirm('Remover a conta Stripe vinculada?\n\nIsso não exclui sua conta na Stripe — apenas desvincula do AgendarAdv. Você poderá reconectar ou vincular outra conta a qualquer momento.')) return
-    setDisconnecting(true); setError('')
-    try {
-      await api.post('/stripe-connect/disconnect')
-      window.location.reload()
-    } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao remover conta.')
-      setDisconnecting(false)
-    }
-  }
-
-  const isConnected = f.stripeChargesEnabled
-  const isPending = f.stripeAccountId && !f.stripeChargesEnabled
 
   return (
     <div className="space-y-5">
-      {banner && (
-        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
-          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-blue-500'}`} />
-          <p className="font-medium">{banner}</p>
-        </div>
-      )}
-      <ProGate>
       <div className="bg-navy-900 rounded-2xl p-6 text-white">
-        <h3 className="font-bold text-lg mb-4">Como funciona o recebimento?</h3>
+        <h3 className="font-bold text-lg mb-4">Como funciona o recebimento via Asaas?</h3>
         <div className="space-y-4">
           {[
-            ['1', 'Seu cliente acessa seu link, escolhe o horário e paga diretamente na página — sem sair da aplicação.'],
-            ['2', 'Usamos o Stripe, a maior plataforma de pagamentos do mundo. Aceitamos cartão de crédito, débito e PIX.'],
-            ['3', 'O dinheiro cai direto na sua conta bancária cadastrada no Stripe. O AgendarAdv retém apenas 0,05% como taxa de plataforma.'],
+            ['1', 'Crie sua conta gratuita em asaas.com e obtenha sua chave de API na seção "Integrações".'],
+            ['2', 'Cole sua chave de API abaixo. Seus clientes poderão pagar via PIX, boleto ou cartão de crédito.'],
+            ['3', 'Após o pagamento, o agendamento é confirmado automaticamente e o cliente recebe um email de confirmação.'],
           ].map(([n, text]) => (
             <div key={n} className="flex gap-3 items-start">
               <span className="flex-shrink-0 w-7 h-7 bg-brand-500 rounded-full flex items-center justify-center text-sm font-bold text-navy-900">{n}</span>
@@ -935,91 +900,65 @@ function FinancialSection({ data, banner, onSaved }) {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-        <h3 className="font-bold text-navy-900 text-lg">Conta Stripe Connect</h3>
-
-        {isConnected && (
-          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
-            <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0" />
-            <div className="flex-1">
-              <p className="font-semibold text-green-800 text-sm">Conta conectada e ativa</p>
-              <p className="text-xs text-green-600 mt-0.5">Você já pode receber pagamentos pela plataforma.</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${f.asaasConnected ? 'bg-green-500' : 'bg-gray-300'}`} />
+          <div>
+            <p className={`font-semibold text-sm ${f.asaasConnected ? 'text-green-800' : 'text-gray-700'}`}>
+              {f.asaasConnected ? 'Asaas conectado' : 'Asaas não conectado'}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {f.asaasConnected
+                ? 'Seus clientes podem pagar via Asaas ao agendar.'
+                : 'Configure sua chave de API para aceitar pagamentos.'}
+            </p>
           </div>
-        )}
+        </div>
 
-        {isPending && (
-          <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
-            <div className="w-3 h-3 bg-yellow-500 rounded-full flex-shrink-0" />
-            <div className="flex-1">
-              <p className="font-semibold text-yellow-800 text-sm">Verificação pendente</p>
-              <p className="text-xs text-yellow-700 mt-0.5">Complete o cadastro no Stripe para começar a receber.</p>
-            </div>
-          </div>
-        )}
-
-        {!f.stripeAccountId && (
-          <div className="flex items-center gap-3 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-            <div className="w-3 h-3 bg-gray-300 rounded-full flex-shrink-0" />
-            <div className="flex-1">
-              <p className="font-semibold text-gray-700 text-sm">Conta não conectada</p>
-              <p className="text-xs text-gray-500 mt-0.5">Conecte sua conta Stripe para aceitar pagamentos.</p>
-            </div>
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {f.asaasConnected ? 'Substituir chave de API Asaas' : 'Chave de API Asaas'}
+          </label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={e => { setApiKey(e.target.value); setSaved(false) }}
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+            placeholder={f.asaasConnected ? 'Cole a nova chave para substituir' : 'Cole sua chave de API aqui'}
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Encontre em: Asaas → Minha Conta → Integrações → Chave de API
+          </p>
+        </div>
 
         {error && <p className="text-red-500 text-sm">{error}</p>}
+        {saved && <p className="text-green-600 text-sm font-medium">✓ Chave de API salva com sucesso</p>}
 
-        {!isConnected && (
-          <button onClick={startOnboarding} disabled={onboarding}
-            className="w-full py-3 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors disabled:opacity-50">
-            {onboarding ? 'Redirecionando...' : isPending ? 'Continuar cadastro no Stripe →' : 'Conectar conta Stripe →'}
-          </button>
-        )}
-
-        {isConnected && (
-          <p className="text-xs text-gray-400 text-center">
-            Para gerenciar saques e dados bancários, acesse o painel Stripe na aba Financeiro.
-          </p>
-        )}
-
-        {f.stripeAccountId && (
-          <button
-            type="button"
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="w-full py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-40">
-            {disconnecting ? 'Removendo...' : 'Remover conta Stripe vinculada'}
-          </button>
-        )}
-      </div>
-      </ProGate>
-
-      <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
-        <div>
-          <h3 className="font-bold text-navy-900 text-lg">Chave PIX</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Alternativa ao Stripe. Ao configurar uma chave PIX, seus clientes verão a chave no momento do agendamento e realizarão o pagamento diretamente para você.
-            Você confirma o recebimento no painel de Compromissos.
-          </p>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Chave PIX</label>
-          <input
-            value={pixKey}
-            onChange={e => { setPixKey(e.target.value); setPixSaved(false) }}
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
-            placeholder="CPF, CNPJ, email, telefone ou chave aleatória"
-          />
-        </div>
-        {pixError && <p className="text-red-500 text-sm">{pixError}</p>}
-        {pixSaved && <p className="text-green-600 text-sm font-medium">✓ Chave PIX salva</p>}
         <button
           type="button"
-          onClick={handleSavePix}
-          disabled={pixSaving}
+          onClick={handleSave}
+          disabled={saving || !apiKey.trim()}
           className="w-full py-3 rounded-xl bg-navy-900 text-white font-semibold text-sm hover:bg-navy-800 transition-colors disabled:opacity-50">
-          {pixSaving ? 'Salvando...' : 'Salvar chave PIX'}
+          {saving ? 'Salvando...' : 'Salvar chave de API'}
         </button>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm p-6 space-y-3">
+        <h3 className="font-bold text-navy-900 text-base">Configurar Webhook no Asaas</h3>
+        <p className="text-sm text-gray-500">
+          Para que os agendamentos sejam confirmados automaticamente após o pagamento, configure o webhook no painel do Asaas.
+        </p>
+        <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
+          <code className="text-xs text-gray-700 flex-1 break-all">{ASAAS_WEBHOOK_URL}</code>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard.writeText(ASAAS_WEBHOOK_URL)}
+            className="flex-shrink-0 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-medium hover:bg-gray-100 transition-colors">
+            Copiar
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          No Asaas: Minha Conta → Integrações → Notificações (Webhook) → cole a URL acima e selecione os eventos <strong>PAYMENT_RECEIVED</strong> e <strong>PAYMENT_CONFIRMED</strong>.
+        </p>
       </div>
     </div>
   )
@@ -1088,7 +1027,6 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('google')
   const [settingsData, setSettingsData] = useState(null)
   const [loadError, setLoadError] = useState('')
-  const [stripeBanner, setStripeBanner] = useState('')
   const [calendarBanner, setCalendarBanner] = useState('')
 
   const load = () => {
@@ -1100,30 +1038,12 @@ export default function Settings() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const stripe = params.get('stripe')
     const calendar = params.get('calendar')
     const calendarReason = params.get('reason')
     const calendarDetail = params.get('detail')
     window.history.replaceState({}, '', '/settings')
 
-    if (stripe === 'success') {
-      setActiveTab('financial')
-      setStripeBanner('Cadastro recebido! Sincronizando status da sua conta Stripe...')
-      api.post('/stripe-connect/sync')
-        .then(({ data }) => {
-          if (data.stripeChargesEnabled) {
-            setStripeBanner('✓ Conta Stripe conectada e ativa! Você já pode receber pagamentos.')
-          } else {
-            setStripeBanner('Cadastro enviado. A Stripe pode levar alguns minutos para verificar sua conta.')
-          }
-          load()
-        })
-        .catch(load)
-    } else if (stripe === 'refresh') {
-      setActiveTab('financial')
-      setStripeBanner('O link de cadastro expirou. Clique em "Continuar cadastro" para tentar novamente.')
-      load()
-    } else if (calendar === 'success') {
+    if (calendar === 'success') {
       setActiveTab('google')
       setCalendarBanner('✓ Google Calendar conectado! Novos agendamentos gerarão links Google Meet automaticamente.')
       load()
@@ -1175,11 +1095,11 @@ export default function Settings() {
         })}
       </div>
 
-      {activeTab === 'google'    && <ProGate><GoogleIntegrationSection data={settingsData} onSaved={load} banner={calendarBanner} /></ProGate>}
+      {activeTab === 'google'    && <GoogleIntegrationSection data={settingsData} onSaved={load} banner={calendarBanner} />}
       {activeTab === 'profile'   && <ProfileSection    data={settingsData} onSaved={load} />}
       {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} banner={calendarBanner} onGoToGoogle={() => setActiveTab('google')} />}
       {activeTab === 'calendar'  && <CalendarSection   data={settingsData} onSaved={load} />}
-      {activeTab === 'financial' && <FinancialSection  data={settingsData} banner={stripeBanner} onSaved={load} />}
+      {activeTab === 'financial' && <FinancialSection  data={settingsData} onSaved={load} />}
       {activeTab === 'alerts'    && <AlertsSection     data={settingsData} onSaved={load} />}
     </div>
   )
