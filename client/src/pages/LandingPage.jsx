@@ -25,7 +25,7 @@ const FEATURES = [
   { icon: '🗓️', title: 'Agenda Inteligente', desc: 'Sincronize com Google Calendar ou use a agenda nativa. Defina dias e horários disponíveis para agendamento.' },
   { icon: '🔗', title: 'Agendador Público', desc: 'Página mobile com sua identidade. O cliente escolhe o horário, descreve o problema e paga — tudo online.' },
   { icon: '👤', title: 'Módulo de Clientes', desc: 'Cadastro completo com histórico de atendimentos, demandas ativas e status financeiro de cada cliente.' },
-  { icon: '💳', title: 'Módulo Financeiro', desc: 'Gerencie cobranças, veja saldo, recebidos e a receber com gráfico de evolução. Aceite PIX manual ou cartão via Stripe.' },
+  { icon: '💳', title: 'Módulo Financeiro', desc: 'Gerencie cobranças, veja saldo, recebidos e a receber com gráfico de evolução. Aceite PIX, boleto e cartão via Asaas.' },
   { icon: '📈', title: 'Dashboard de Gestão', desc: 'Compromissos de hoje e amanhã, countdown pro próximo cliente, recebíveis e indicadores do período.' },
   { icon: '⚙️', title: 'Configurações Completas', desc: 'Personalize seu escritório, especialidades, horários, integração com Google e muito mais.' },
 ]
@@ -190,7 +190,7 @@ export default function LandingPage() {
       {/* Gratuito */}
       <section className="py-20 px-6 bg-gray-50">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-navy-900 mb-3">Gratuito de verdade. Para sempre.</h2>
+          <h2 className="text-3xl font-bold text-navy-900 mb-3">Gratuito de verdade.</h2>
           <p className="text-gray-500 mb-10 text-lg">
             Sem planos, sem asterisco, sem cartão. Todas as funcionalidades disponíveis desde o primeiro dia.
           </p>
@@ -198,7 +198,7 @@ export default function LandingPage() {
           <div className="bg-white rounded-2xl border-2 border-brand-500 p-8 text-left shadow-sm">
             <div className="flex items-end gap-2 mb-2">
               <span className="text-6xl font-extrabold text-navy-900">R$ 0</span>
-              <span className="text-gray-400 text-base mb-3">/mês para sempre</span>
+              <span className="text-gray-400 text-base mb-3">/mês</span>
             </div>
             <p className="text-gray-500 text-sm mb-7">Todas as funcionalidades, sem limites de consultas.</p>
 
