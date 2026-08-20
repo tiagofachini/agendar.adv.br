@@ -168,7 +168,7 @@ function OnboardingBanner() {
 
   useEffect(() => {
     api.get('/settings').then(r => {
-      if (!r.data?.settings?.asaasApiKey) setShow(true)
+      if (!r.data?.financial?.asaasConnected) setShow(true)
     }).catch(() => {})
   }, [])
 
@@ -180,7 +180,7 @@ function OnboardingBanner() {
         <p className="font-semibold text-white text-sm">Ative os pagamentos online</p>
         <p className="text-xs text-gray-400 mt-0.5">Configure sua chave Asaas e receba pagamentos direto no agendamento.</p>
       </div>
-      <button onClick={() => navigate('/configuracoes')}
+      <button onClick={() => navigate('/settings')}
         className="shrink-0 px-4 py-2 rounded-xl bg-brand-500 text-navy-900 text-sm font-semibold hover:bg-brand-400 transition-colors">
         Configurar →
       </button>
