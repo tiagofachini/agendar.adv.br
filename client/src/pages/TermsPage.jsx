@@ -80,6 +80,19 @@ export default function TermsPage() {
               financeira é realizada via Asaas, empresa regulamentada pelo Banco Central do Brasil (Bacen). O valor
               das consultas é transferido diretamente para a conta bancária do advogado cadastrada no Asaas.
             </p>
+            <p className="mt-3">
+              <strong>Taxas de processamento Asaas:</strong> O Asaas desconta suas taxas antes de creditar o valor
+              na conta do advogado. As taxas padrão são: PIX 0,99% (mínimo R$0,99 por transação), Boleto bancário
+              R$1,99 por cobrança e Cartão de crédito a partir de 3,49% por transação. O valor exibido ao cliente
+              no momento do agendamento é o valor bruto da consulta; o valor efetivamente creditado na conta Asaas
+              é o valor bruto deduzido da respectiva taxa de processamento. O AgendarAdv não retém nenhuma parte
+              desses valores — a diferença é integralmente retida pelo Asaas como remuneração pelo serviço de
+              processamento de pagamentos. Taxas negociadas individualmente podem diferir das aqui informadas;
+              consulte sempre o painel da sua conta em{' '}
+              <a href="https://www.asaas.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                asaas.com
+              </a>.
+            </p>
           </section>
 
           <section>

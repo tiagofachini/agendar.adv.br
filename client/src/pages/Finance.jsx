@@ -29,10 +29,12 @@ const BULK_STATUS_OPTIONS = [
 
 const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
 
+const ASAAS_FEES_NOTE = 'Taxas Asaas descontadas antes do crédito em conta: PIX 0,99% (mín. R$0,99) · Boleto R$1,99 · Cartão a partir de 3,49%.'
+
 const CARD_TOOLTIPS = {
-  paid:      'Valores já confirmados como recebidos pelo advogado.',
-  pending:   'Agendamentos cujo pagamento ainda não foi registrado como recebido.',
-  overdue:   'Pagamentos com data de vencimento ultrapassada sem confirmação.',
+  paid:      `Total bruto confirmado como recebido. ${ASAAS_FEES_NOTE}`,
+  pending:   'Cobranças geradas aguardando pagamento pelo cliente.',
+  overdue:   'Cobranças com data de vencimento ultrapassada sem confirmação de pagamento.',
   cancelled: 'Registros cancelados ou estornados.',
 }
 
@@ -140,10 +142,22 @@ export default function Finance() {
 
       {/* Saldo Asaas */}
       {balance?.balance != null && (
-        <div className="bg-navy-900 rounded-2xl p-6 mb-6">
-          <p className="text-brand-400 text-sm font-medium mb-3">Saldo disponível na conta Asaas</p>
-          <p className="text-white text-3xl font-extrabold">{fmt(balance.balance)}</p>
-          <p className="text-gray-400 text-xs mt-1">Saldo disponível para transferência à sua conta bancária.</p>
+        <div className="bg-navy-900 rounded-2xl p-6 mb-6 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-brand-400 text-sm font-medium mb-1">Saldo disponível para saque</p>
+            <p className="text-white text-3xl font-extrabold">{fmt(balance.balance)}</p>
+            <p className="text-gray-400 text-xs mt-1">
+              Valor líquido disponível na sua conta Asaas após taxas de processamento.
+            </p>
+          </div>
+          <a
+            href="https://www.asaas.com/transfer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 px-5 py-2.5 rounded-xl bg-brand-500 text-navy-900 text-sm font-semibold hover:bg-brand-400 transition-colors"
+          >
+            Solicitar saque →
+          </a>
         </div>
       )}
 
