@@ -22,6 +22,26 @@ function maskPhone(raw) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
+function maskDocument(raw) {
+  const d = raw.replace(/\D/g, '').slice(0, 14)
+  if (d.length <= 11) {
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
+    if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+  }
+  if (d.length <= 2) return d
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
+}
+
+function isDocumentValid(doc) {
+  const digits = doc.replace(/\D/g, '')
+  return digits.length === 11 || digits.length === 14
+}
+
 function buildGoogleCalUrl({ date, slot, duration, lawyerName, specialty, location }) {
   const start = new Date(`${format(date, 'yyyy-MM-dd')}T${slot}:00-03:00`)
   const end = new Date(start.getTime() + duration * 60_000)
@@ -135,7 +155,7 @@ export default function Scheduler() {
 
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientWhatsapp: '',
-    specialty: '', description: '',
+    specialty: '', description: '', clientDocument: '',
   })
 
   const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -273,6 +293,7 @@ export default function Scheduler() {
         clientName: form.clientName,
         clientEmail: form.clientEmail,
         clientWhatsapp: form.clientWhatsapp,
+        clientDocument: form.clientDocument || undefined,
         specialty,
         description: form.description,
         selectedDate: format(selectedDate, 'yyyy-MM-dd'),
@@ -735,14 +756,29 @@ export default function Scheduler() {
               )}
 
               {showPaymentStep ? (
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
-                  <p className="text-blue-800 text-sm font-medium">
-                    💳 Ao confirmar, você será redirecionado para a página de pagamento seguro via Asaas.
-                  </p>
-                  <p className="text-blue-700 text-xs mt-1">
-                    Aceitamos PIX, boleto bancário e cartão de crédito. O horário é confirmado automaticamente após aprovação do pagamento.
-                  </p>
-                </div>
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      CPF ou CNPJ <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      value={form.clientDocument}
+                      onChange={e => setForm(f => ({ ...f, clientDocument: maskDocument(e.target.value) }))}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                      placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                      inputMode="numeric"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Necessário para processar o pagamento via Asaas.</p>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
+                    <p className="text-blue-800 text-sm font-medium">
+                      💳 Ao confirmar, você será redirecionado para a página de pagamento seguro via Asaas.
+                    </p>
+                    <p className="text-blue-700 text-xs mt-1">
+                      Aceitamos PIX, boleto bancário e cartão de crédito. O horário é confirmado automaticamente após aprovação do pagamento.
+                    </p>
+                  </div>
+                </>
               ) : (
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-5">
                   <p className="text-amber-800 text-sm font-medium">
@@ -756,7 +792,9 @@ export default function Scheduler() {
 
               <div className="flex gap-3">
                 <button onClick={() => setStep(2)} className="flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-medium">← Voltar</button>
-                <button onClick={handleBook} disabled={booking}
+                <button
+                  onClick={handleBook}
+                  disabled={booking || (showPaymentStep && !isDocumentValid(form.clientDocument))}
                   className="flex-1 py-3 rounded-xl text-white font-bold disabled:opacity-50 transition-colors"
                   style={{ backgroundColor: brand1 }}>
                   {booking ? 'Aguarde...' : showPaymentStep ? 'Ir para pagamento →' : 'Confirmar →'}

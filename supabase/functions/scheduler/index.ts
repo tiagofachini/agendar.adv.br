@@ -459,7 +459,7 @@ Deno.serve(async (req) => {
 
     if (req.method === 'POST' && action === 'book') {
       const body = await req.json()
-      const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot } = body
+      const { clientName, clientEmail, clientWhatsapp, clientDocument, specialty, description, selectedDate, selectedSlot } = body
 
       if (!clientName || !clientEmail || !specialty || !selectedDate || !selectedSlot) {
         return Response.json({ error: 'Campos obrigatórios ausentes' }, { status: 400, headers: cors })
@@ -538,12 +538,19 @@ Deno.serve(async (req) => {
       if (hasAsaas && amountBRL > 0) {
         const custList = await asaasReq(s.asaasApiKey, 'GET', `/customers?email=${encodeURIComponent(clientEmail)}&limit=1`)
         let asaasCustomerId: string
+        const cpfCnpj = clientDocument ? clientDocument.replace(/\D/g, '') : undefined
         if (custList.data?.length > 0) {
           asaasCustomerId = custList.data[0].id
+          if (cpfCnpj && !custList.data[0].cpfCnpj) {
+            await asaasReq(s.asaasApiKey, 'PUT', `/customers/${asaasCustomerId}`, {
+              name: clientName, cpfCnpj,
+            }).catch(() => {})
+          }
         } else {
           const newCust = await asaasReq(s.asaasApiKey, 'POST', '/customers', {
             name: clientName,
             email: clientEmail,
+            ...(cpfCnpj ? { cpfCnpj } : {}),
             ...(clientWhatsapp ? { mobilePhone: clientWhatsapp.replace(/\D/g, '') } : {}),
           })
           asaasCustomerId = newCust.id
