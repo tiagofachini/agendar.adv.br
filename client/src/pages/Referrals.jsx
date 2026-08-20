@@ -8,6 +8,9 @@ export default function Referrals() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [claiming, setClaiming] = useState(false)
+  const [claimed, setClaimed] = useState(false)
+  const [claimError, setClaimError] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -17,12 +20,10 @@ export default function Referrals() {
       const { data: stats, error: statsErr } = await supabase.rpc('get_referral_stats')
       if (statsErr) { setError(statsErr.message); setLoading(false); return }
 
-      const row = stats?.[0]
       setData({
         code,
         link: `${SITE_URL}/?ref=${code}`,
-        total: Number(row?.total ?? 0),
-        rewardMonths: Number(row?.reward_months ?? 0),
+        points: Number(stats?.[0]?.points ?? 0),
       })
       setLoading(false)
     }
@@ -39,49 +40,103 @@ export default function Referrals() {
 
   const whatsappShare = () => {
     if (!data?.link) return
-    const text = `Ei! Estou usando o AgendarAdv para gerenciar minha agenda e cobranças. Você pode se cadastrar pelo meu link e, se assinar o Pro, eu ganho um mês grátis 😄 ${data.link}`
+    const text = `Olá! Estou usando o AgendarAdv para gerenciar minha agenda jurídica. Cadastre-se pelo meu link e me ajude a ganhar um voucher de R$300 para compras online! ${data.link}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
+
+  const claimPrize = async () => {
+    setClaiming(true)
+    setClaimError('')
+    const { error: fnErr } = await supabase.functions.invoke('prize-request', { method: 'POST' })
+    if (fnErr) {
+      setClaimError(fnErr.message || 'Erro ao solicitar prêmio')
+    } else {
+      setClaimed(true)
+    }
+    setClaiming(false)
+  }
+
+  const points = data?.points ?? 0
+  const canClaim = points >= 10
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-navy-900">Programa de Indicação</h1>
-        <p className="text-sm text-gray-500 mt-1">Ganhe meses grátis no Plano Pro a cada colega que você indicar</p>
+        <p className="text-sm text-gray-500 mt-1">Indique colegas advogados e ganhe um voucher de R$300 para compras online</p>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700 font-mono break-all">
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
           {error}
         </div>
       )}
+
+      {/* Destaque do prêmio */}
+      <div className="bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl p-6 mb-6 text-amber-900">
+        <div className="text-4xl mb-2">🎁</div>
+        <h2 className="text-xl font-bold mb-1">Voucher de R$300</h2>
+        <p className="text-sm opacity-90 leading-relaxed">
+          Válido para compras em qualquer loja online no Brasil. Indique 10 colegas — você ganha o voucher. Simples assim.
+        </p>
+      </div>
+
+      {/* Contador de pontos */}
+      <div className={`rounded-2xl p-6 mb-6 text-center border-2 transition-colors ${
+        canClaim ? 'bg-green-50 border-green-400' : 'bg-white border-gray-100 shadow-sm'
+      }`}>
+        <div className={`text-5xl font-extrabold mb-1 ${canClaim ? 'text-green-600' : 'text-navy-900'}`}>
+          {loading ? '—' : points}
+          <span className={`text-lg font-semibold ml-2 ${canClaim ? 'text-green-500' : 'text-gray-400'}`}>/ 10</span>
+        </div>
+        <div className="text-sm text-gray-500 mb-3">pontos de indicação válidos</div>
+
+        <div className="w-full bg-gray-100 rounded-full h-2 mb-4">
+          <div
+            className={`h-2 rounded-full transition-all ${canClaim ? 'bg-green-400' : 'bg-amber-400'}`}
+            style={{ width: `${Math.min(100, (points / 10) * 100)}%` }}
+          />
+        </div>
+
+        {canClaim && !claimed && (
+          <button
+            onClick={claimPrize}
+            disabled={claiming}
+            className="w-full py-3 rounded-xl font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors disabled:opacity-60"
+          >
+            {claiming ? 'Solicitando…' : '🎁 Resgatar voucher de R$300'}
+          </button>
+        )}
+
+        {claimed && (
+          <div className="bg-green-100 text-green-700 rounded-xl py-3 text-sm font-medium">
+            ✓ Solicitação enviada! Você receberá o voucher em breve.
+          </div>
+        )}
+
+        {claimError && <p className="text-red-500 text-sm mt-2">{claimError}</p>}
+
+        {!canClaim && !loading && (
+          <p className="text-xs text-gray-400">
+            Faltam {10 - points} indicação{10 - points !== 1 ? 'ões' : ''} para resgatar o voucher.
+          </p>
+        )}
+      </div>
 
       {/* Como funciona */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
         <h2 className="font-semibold text-amber-900 mb-3">Como funciona</h2>
         <div className="space-y-2.5">
           {[
-            ['1', 'Copie seu link de indicação abaixo'],
-            ['2', 'Compartilhe com colegas advogados — por WhatsApp, email ou redes sociais'],
-            ['3', 'Cada colega que assinar o Plano Pro usando seu link vale 1 mês grátis para você'],
+            ['1', 'Copie seu link e compartilhe com colegas advogados'],
+            ['2', 'Cada colega que se cadastrar, confirmar o e-mail e fizer login vale 1 ponto'],
+            ['3', 'Com 10 pontos, clique em "Resgatar" e receba o voucher de R$300'],
           ].map(([n, text]) => (
             <div key={n} className="flex items-start gap-3">
               <span className="bg-amber-400 text-amber-900 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">{n}</span>
               <p className="text-sm text-amber-800">{text}</p>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center">
-          <div className="text-3xl font-extrabold text-navy-900">{loading ? '—' : (data?.total ?? 0)}</div>
-          <div className="text-sm text-gray-500 mt-1">Indicações convertidas</div>
-        </div>
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 border-l-4 border-l-amber-400 text-center">
-          <div className="text-3xl font-extrabold text-navy-900">{loading ? '—' : (data?.rewardMonths ?? 0)}</div>
-          <div className="text-sm text-gray-500 mt-1">Meses grátis ganhos</div>
         </div>
       </div>
 
@@ -119,9 +174,6 @@ export default function Referrals() {
             </button>
           </div>
         )}
-        <p className="text-xs text-gray-400 mt-3">
-          O benefício é aplicado automaticamente quando o colega assinar o Plano Pro a partir do seu link.
-        </p>
       </div>
     </div>
   )

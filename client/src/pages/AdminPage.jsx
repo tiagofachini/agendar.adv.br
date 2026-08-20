@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api from '../lib/api'
+import { supabase } from '../lib/supabase'
 
 const ADMIN_EMAIL = 'emaildogago@gmail.com'
 
@@ -53,6 +54,9 @@ export default function AdminPage() {
   const [dateTo, setDateTo] = useState('')
   const [deleting, setDeleting] = useState(null)
   const [error, setError] = useState('')
+  const [prizes, setPrizes] = useState([])
+  const [prizesLoading, setPrizesLoading] = useState(true)
+  const [updatingPrize, setUpdatingPrize] = useState(null)
 
   const isAdmin = session?.user?.email === ADMIN_EMAIL
 
@@ -63,6 +67,20 @@ export default function AdminPage() {
       .catch(e => setError(e.response?.data?.error || 'Erro ao carregar usuários'))
       .finally(() => setLoading(false))
   }, [isAdmin])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    supabase.rpc('list_prize_requests')
+      .then(({ data }) => setPrizes(data ?? []))
+      .finally(() => setPrizesLoading(false))
+  }, [isAdmin])
+
+  const markPrizeSent = async (id) => {
+    setUpdatingPrize(id)
+    await supabase.rpc('update_prize_request', { request_id: id, new_status: 'SENT' })
+    setPrizes(prev => prev.map(p => p.id === id ? { ...p, status: 'SENT' } : p))
+    setUpdatingPrize(null)
+  }
 
   const applyPreset = (p) => {
     const range = getPresetRange(p)
@@ -147,6 +165,65 @@ export default function AdminPage() {
           </div>
         ))}
       </div>
+
+      {/* Pedidos de Prêmio */}
+      {(prizesLoading || prizes.length > 0) && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-navy-900 mb-3">Pedidos de Prêmio 🎁</h2>
+          <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+            {prizesLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-500" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-amber-100 bg-amber-50 text-xs uppercase tracking-wide text-amber-700">
+                      <th className="text-left px-4 py-3 font-semibold">Advogado</th>
+                      <th className="text-left px-4 py-3 font-semibold">Email</th>
+                      <th className="text-left px-4 py-3 font-semibold">Pontos</th>
+                      <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">Solicitado em</th>
+                      <th className="text-left px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 w-36" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {prizes.map(p => (
+                      <tr key={p.id} className="hover:bg-gray-50/70">
+                        <td className="px-4 py-3 font-medium text-navy-900">{p.lawyerName}</td>
+                        <td className="px-4 py-3 text-gray-500">{p.lawyerEmail}</td>
+                        <td className="px-4 py-3 font-bold text-amber-600">{p.points}</td>
+                        <td className="px-4 py-3 text-gray-400 whitespace-nowrap hidden md:table-cell">{fmt(p.requestedAt)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                            p.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                            p.status === 'SENT' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-500'
+                          }`}>
+                            {p.status === 'PENDING' ? 'Pendente' : p.status === 'SENT' ? 'Enviado' : p.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {p.status === 'PENDING' && (
+                            <button
+                              onClick={() => markPrizeSent(p.id)}
+                              disabled={updatingPrize === p.id}
+                              className="text-xs text-green-600 hover:text-green-700 font-medium disabled:opacity-40"
+                            >
+                              {updatingPrize === p.id ? '…' : 'Marcar enviado'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-4 space-y-3">
         <div className="flex flex-wrap gap-3">
