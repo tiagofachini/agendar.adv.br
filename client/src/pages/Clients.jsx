@@ -18,6 +18,21 @@ function maskCep(raw) {
   return `${d.slice(0, 5)}-${d.slice(5)}`
 }
 
+function maskDocument(raw) {
+  const d = raw.replace(/\D/g, '').slice(0, 14)
+  if (d.length <= 11) {
+    if (d.length <= 3) return d
+    if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
+    if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+  }
+  if (d.length <= 2) return d
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
+}
+
 function WhatsAppIcon({ className = 'w-5 h-5' }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -76,7 +91,7 @@ function MiniMap({ street, number, city, state }) {
 // ── Modal de novo/editar cliente ───────────────────────────────────────────────
 function ClientModal({ clientId, onClose, onSaved }) {
   const [form, setForm] = useState({
-    name: '', email: '', whatsapp: '',
+    name: '', email: '', whatsapp: '', cpfCnpj: '',
     cep: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '',
   })
   const [loading, setLoading] = useState(false)
@@ -86,9 +101,9 @@ function ClientModal({ clientId, onClose, onSaved }) {
   useEffect(() => {
     if (clientId) {
       api.get(`/clients/${clientId}`).then(r => {
-        const { name, email, whatsapp, cep, street, number, complement, neighborhood, city, state } = r.data
+        const { name, email, whatsapp, cpfCnpj, cep, street, number, complement, neighborhood, city, state } = r.data
         setForm({
-          name: name || '', email: email || '', whatsapp: whatsapp || '',
+          name: name || '', email: email || '', whatsapp: whatsapp || '', cpfCnpj: cpfCnpj || '',
           cep: cep || '', street: street || '', number: number || '',
           complement: complement || '', neighborhood: neighborhood || '',
           city: city || '', state: state || '',
@@ -154,6 +169,12 @@ function ClientModal({ clientId, onClose, onSaved }) {
             <input className={cls} value={form.whatsapp}
               onChange={e => setForm({ ...form, whatsapp: maskPhone(e.target.value) })}
               placeholder="(11) 99999-9999" maxLength={15} inputMode="numeric" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">CPF / CNPJ</label>
+            <input className={cls} value={form.cpfCnpj}
+              onChange={e => setForm({ ...form, cpfCnpj: maskDocument(e.target.value) })}
+              placeholder="000.000.000-00 ou 00.000.000/0000-00" maxLength={18} inputMode="numeric" />
           </div>
 
           <div className="border-t border-gray-100 pt-4">
@@ -233,6 +254,14 @@ function ClientDetail({ clientId, onClose, onEdit }) {
 
   const STATUS_LABEL = { PENDING_PAYMENT: 'Aguardando', CONFIRMED: 'Confirmado', COMPLETED: 'Realizado', CANCELLED: 'Cancelado', EXPIRED: 'Expirado' }
   const STATUS_COLOR = { PENDING_PAYMENT: 'bg-yellow-100 text-yellow-800', CONFIRMED: 'bg-blue-100 text-blue-800', COMPLETED: 'bg-green-100 text-green-800', CANCELLED: 'bg-red-100 text-red-800', EXPIRED: 'bg-gray-100 text-gray-600' }
+  const PAY_STATUS = {
+    PENDING:   { label: 'A receber',  color: 'bg-yellow-100 text-yellow-700' },
+    PAID:      { label: 'Pago',       color: 'bg-green-100 text-green-700' },
+    OVERDUE:   { label: 'Atrasado',   color: 'bg-red-100 text-red-700' },
+    CANCELLED: { label: 'Cancelado',  color: 'bg-gray-100 text-gray-400' },
+    REFUNDED:  { label: 'Estornado',  color: 'bg-purple-100 text-purple-600' },
+  }
+  const fmtBRL = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
 
   const sendMsg = async (e) => {
     e.preventDefault()
@@ -293,6 +322,11 @@ function ClientDetail({ clientId, onClose, onEdit }) {
                 <span>📱</span>{client.whatsapp}
               </div>
             )}
+            {client.cpfCnpj && (
+              <div className="flex items-center gap-2 text-gray-700">
+                <span>🪪</span>{client.cpfCnpj}
+              </div>
+            )}
           </div>
 
           {/* Endereço + mini-mapa */}
@@ -336,6 +370,37 @@ function ClientDetail({ clientId, onClose, onEdit }) {
                     {a.specialty && <p className="text-xs text-gray-500">{a.specialty}</p>}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Cobranças */}
+          {client.payments?.length > 0 && (
+            <div>
+              <h3 className="font-semibold text-navy-900 mb-3">Cobranças</h3>
+              <div className="space-y-2">
+                {client.payments.map(p => {
+                  const ps = PAY_STATUS[p.status] || PAY_STATUS.CANCELLED
+                  return (
+                    <div key={p.id} className="bg-gray-50 rounded-lg p-3 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800">{fmtBRL(p.amount)}</p>
+                        <p className="text-xs text-gray-400">
+                          {p.dueDate
+                            ? `Venc. ${new Date(p.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                            : new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ps.color}`}>{ps.label}</span>
+                        {p.asaasUrl && p.status !== 'PAID' && p.status !== 'CANCELLED' && (
+                          <a href={p.asaasUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline">Pagar →</a>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

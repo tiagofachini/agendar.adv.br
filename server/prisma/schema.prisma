@@ -86,6 +86,7 @@ model Client {
   name     String
   email    String
   whatsapp String?
+  cpfCnpj  String?
 
   cep          String?
   street       String?

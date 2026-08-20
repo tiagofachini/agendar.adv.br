@@ -96,7 +96,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/clients
 router.post('/', async (req, res) => {
-  const { name, email, whatsapp, cep, street, number, complement, neighborhood, city, state } = req.body
+  const { name, email, whatsapp, cpfCnpj, cep, street, number, complement, neighborhood, city, state } = req.body
   if (!name || !email) return res.status(400).json({ error: 'name e email são obrigatórios' })
 
   try {
@@ -106,7 +106,7 @@ router.post('/', async (req, res) => {
     if (exists) return res.status(409).json({ error: 'Cliente com este email já cadastrado' })
 
     const client = await prisma.client.create({
-      data: { lawyerId: req.lawyerId, name, email, whatsapp, cep, street, number, complement, neighborhood, city, state },
+      data: { lawyerId: req.lawyerId, name, email, whatsapp, cpfCnpj, cep, street, number, complement, neighborhood, city, state },
     })
     return res.status(201).json(client)
   } catch {
@@ -116,7 +116,7 @@ router.post('/', async (req, res) => {
 
 // PUT /api/clients/:id
 router.put('/:id', async (req, res) => {
-  const { name, email, whatsapp, cep, street, number, complement, neighborhood, city, state } = req.body
+  const { name, email, whatsapp, cpfCnpj, cep, street, number, complement, neighborhood, city, state } = req.body
   try {
     const exists = await prisma.client.findFirst({
       where: { id: req.params.id, lawyerId: req.lawyerId },
@@ -124,7 +124,7 @@ router.put('/:id', async (req, res) => {
     if (!exists) return res.status(404).json({ error: 'Cliente não encontrado' })
     const updated = await prisma.client.update({
       where: { id: req.params.id },
-      data: { name, email, whatsapp, cep, street, number, complement, neighborhood, city, state },
+      data: { name, email, whatsapp, cpfCnpj, cep, street, number, complement, neighborhood, city, state },
     })
     return res.json(updated)
   } catch {

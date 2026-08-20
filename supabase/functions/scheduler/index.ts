@@ -477,7 +477,7 @@ Deno.serve(async (req) => {
 
       const { data: existing } = await sb
         .from('Client')
-        .select('id')
+        .select('id,cpfCnpj')
         .eq('lawyerId', lawyer.id)
         .eq('email', clientEmail)
         .maybeSingle()
@@ -485,6 +485,9 @@ Deno.serve(async (req) => {
       let clientId: string
       if (existing) {
         clientId = existing.id
+        if (clientDocument && !existing.cpfCnpj) {
+          await sb.from('Client').update({ cpfCnpj: clientDocument }).eq('id', clientId).catch(() => {})
+        }
       } else {
         const { data: nc, error: ncErr } = await sb
           .from('Client')
@@ -494,6 +497,7 @@ Deno.serve(async (req) => {
             name: clientName,
             email: clientEmail,
             whatsapp: clientWhatsapp,
+            ...(clientDocument ? { cpfCnpj: clientDocument } : {}),
             updatedAt: new Date().toISOString(),
           })
           .select('id')

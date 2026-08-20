@@ -74,7 +74,6 @@ export default function Finance() {
   const [tab, setTab] = useState('')
   const [data, setData] = useState(null)
   const [balance, setBalance] = useState(null)
-  const [dashLink, setDashLink] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [page, setPage] = useState(1)
@@ -91,7 +90,6 @@ export default function Finance() {
 
   useEffect(() => {
     api.get('/finance/balance').then(r => setBalance(r.data)).catch(() => {})
-    api.get('/stripe-connect/dashboard-link').then(r => setDashLink(r.data.url)).catch(() => {})
   }, [])
 
   const handleTabChange = (v) => { setTab(v); setPage(1); clearSelect() }
@@ -140,36 +138,12 @@ export default function Finance() {
         <p className="text-sm text-gray-500">Controle de recebíveis e pagamentos</p>
       </div>
 
-      {/* Saldo Stripe */}
-      {(balance?.available != null || balance?.pending != null) && (
+      {/* Saldo Asaas */}
+      {balance?.balance != null && (
         <div className="bg-navy-900 rounded-2xl p-6 mb-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-brand-400 text-sm font-medium mb-3">Saldo na conta Stripe</p>
-              <div className="flex gap-8">
-                <div>
-                  <p className="text-white text-2xl font-extrabold">{fmt(balance.available ?? 0)}</p>
-                  <p className="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
-                  Disponível para saque
-                  <InfoTooltip text="Saldo liquidado disponível para transferência à sua conta bancária." />
-                </p>
-                </div>
-                <div>
-                  <p className="text-gray-300 text-2xl font-extrabold">{fmt(balance.pending ?? 0)}</p>
-                  <p className="text-gray-400 text-xs mt-0.5 flex items-center gap-1">
-                  Em trânsito
-                  <InfoTooltip text="Valores em processamento pelo Stripe. Liberados em 2–7 dias úteis após a transação." />
-                </p>
-                </div>
-              </div>
-            </div>
-            {dashLink && (
-              <a href={dashLink} target="_blank" rel="noopener noreferrer"
-                className="shrink-0 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors">
-                Painel Stripe →
-              </a>
-            )}
-          </div>
+          <p className="text-brand-400 text-sm font-medium mb-3">Saldo disponível na conta Asaas</p>
+          <p className="text-white text-3xl font-extrabold">{fmt(balance.balance)}</p>
+          <p className="text-gray-400 text-xs mt-1">Saldo disponível para transferência à sua conta bancária.</p>
         </div>
       )}
 
@@ -252,6 +226,11 @@ export default function Finance() {
                   <div className="flex items-center gap-3 ml-4">
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${st.color}`}>{st.label}</span>
                     <span className="font-bold text-navy-900 whitespace-nowrap">{fmt(p.amount)}</span>
+                    {p.asaasUrl && p.status !== 'PAID' && p.status !== 'CANCELLED' && (
+                      <a href={p.asaasUrl} target="_blank" rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="text-xs text-blue-600 hover:underline whitespace-nowrap">Link →</a>
+                    )}
                   </div>
                 </div>
               )
