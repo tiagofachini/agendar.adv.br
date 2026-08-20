@@ -129,6 +129,7 @@ export default function Scheduler() {
   const [micError, setMicError] = useState('')
   const [detectingSpecialty, setDetectingSpecialty] = useState(false)
   const [monthBlocked, setMonthBlocked] = useState(false)
+  const [paymentConfirmed, setPaymentConfirmed] = useState(null)
   const recognitionRef = useRef(null)
   const baseDescRef = useRef('')
 
@@ -140,6 +141,22 @@ export default function Scheduler() {
   const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const paymentDone = params.get('payment_done')
+    const confirmedApptId = params.get('apptId')
+
+    if (paymentDone === '1' && confirmedApptId) {
+      window.history.replaceState({}, '', `/${slug}`)
+      publicApi.get(`/scheduler/${slug}`)
+        .then(r => {
+          setInfo(r.data)
+          return publicApi.get(`/scheduler/${slug}/appointment?apptId=${confirmedApptId}`)
+        })
+        .then(r => setPaymentConfirmed(r.data))
+        .catch(() => setNotFound(true))
+      return
+    }
+
     publicApi.get(`/scheduler/${slug}`)
       .then((r) => {
         setInfo(r.data)
@@ -288,6 +305,52 @@ export default function Scheduler() {
       <div className="animate-pulse text-navy-900 font-medium">Carregando agendador...</div>
     </div>
   )
+
+  if (paymentConfirmed && info) {
+    const b1 = /^#[0-9a-fA-F]{6}$/.test(info.brandColor1) ? info.brandColor1 : '#1a1a2e'
+    const apptDate = new Date(paymentConfirmed.date)
+    const dateStr = apptDate.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const timeStr = apptDate.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="h-1.5 flex-shrink-0" style={{ backgroundColor: b1 }} />
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="max-w-md w-full space-y-4">
+            <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
+              <div className="text-6xl mb-4">✅</div>
+              <h1 className="text-2xl font-bold text-navy-900 mb-2">Pagamento confirmado!</h1>
+              <p className="text-gray-500 text-sm">Sua consulta está agendada. Você receberá um email com todos os detalhes.</p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm p-6 space-y-3">
+              <h2 className="font-bold text-navy-900 text-base mb-4">Detalhes da consulta</h2>
+              <div className="space-y-2.5">
+                {[
+                  ['Advogado', paymentConfirmed.lawyerName],
+                  ['Data', dateStr],
+                  ['Horário', timeStr],
+                  ['Área', paymentConfirmed.specialty],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between text-sm">
+                    <span className="text-gray-500">{label}</span>
+                    <span className="font-semibold text-navy-900 text-right max-w-[60%] capitalize">{value}</span>
+                  </div>
+                ))}
+                {paymentConfirmed.meetingLink && (
+                  <div className="flex justify-between text-sm border-t border-gray-100 pt-2.5 mt-1">
+                    <span className="text-gray-500">Reunião online</span>
+                    <a href={paymentConfirmed.meetingLink} target="_blank" rel="noopener noreferrer"
+                      className="font-semibold text-blue-600 hover:underline text-right max-w-[60%] break-all">
+                      Abrir link →
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const brand1 = /^#[0-9a-fA-F]{6}$/.test(info.brandColor1) ? info.brandColor1 : '#1a1a2e'
   const brand2 = /^#[0-9a-fA-F]{6}$/.test(info.brandColor2) ? info.brandColor2 : '#f5c842'

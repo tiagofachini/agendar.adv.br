@@ -306,8 +306,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'GET' && !action) {
-      const hourlyRate = parseFloat(s.hourlyRate ?? '0')
-      const hasAsaas = !!(s.asaasApiKey && hourlyRate > 0)
+      const hasAsaas = !!(s.asaasApiKey)
 
       type DayConfig = { day: number; active: boolean }
       const workDays = s.workSchedule && Array.isArray(s.workSchedule)
@@ -441,6 +440,23 @@ Deno.serve(async (req) => {
       return Response.json({ slots }, { headers: cors })
     }
 
+    if (req.method === 'GET' && action === 'appointment') {
+      const apptId = url.searchParams.get('apptId')
+      if (!apptId) return Response.json({ error: 'apptId required' }, { status: 400, headers: cors })
+      const { data: appt } = await sb
+        .from('Appointment')
+        .select('id,date,duration,specialty,status,meetingLink')
+        .eq('id', apptId)
+        .eq('lawyerId', lawyer.id)
+        .maybeSingle()
+      if (!appt) return Response.json({ error: 'Not found' }, { status: 404, headers: cors })
+      return Response.json({
+        id: appt.id, date: appt.date, duration: appt.duration,
+        specialty: appt.specialty, status: appt.status,
+        meetingLink: appt.meetingLink, lawyerName: lawyer.name,
+      }, { headers: cors })
+    }
+
     if (req.method === 'POST' && action === 'book') {
       const body = await req.json()
       const { clientName, clientEmail, clientWhatsapp, specialty, description, selectedDate, selectedSlot } = body
@@ -540,6 +556,8 @@ Deno.serve(async (req) => {
           dueDate,
           description: `Consulta jurídica: ${specialty} — ${lawyer.name}`,
           externalReference: apptId,
+          callbackSuccessUrl: `https://agendar.adv.br/${slug}?payment_done=1&apptId=${apptId}`,
+          callbackAbortUrl: `https://agendar.adv.br/${slug}`,
         })
         asaasPaymentUrl = pmt.invoiceUrl ?? null
         asaasPaymentId = pmt.id ?? null
