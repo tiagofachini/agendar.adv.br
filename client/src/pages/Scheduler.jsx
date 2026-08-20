@@ -466,10 +466,15 @@ export default function Scheduler() {
         {/* Step indicator */}
         <div className="bg-white border-b px-4 py-3 overflow-x-auto">
           <div className="flex items-center justify-center gap-0 min-w-max mx-auto">
-            {STEPS.map((label, i) => (
+            {STEPS.map((label, i) => {
+              const canGoBack = i < step && step !== 4
+              return (
               <div key={label} className="flex items-center">
-                <div className={`flex items-center gap-1.5 ${i <= step ? '' : 'text-gray-300'}`}
-                  style={i <= step ? { color: brand1 } : {}}>
+                <div
+                  className={`flex items-center gap-1.5 ${i <= step ? '' : 'text-gray-300'} ${canGoBack ? 'cursor-pointer' : ''}`}
+                  style={i <= step ? { color: brand1 } : {}}
+                  onClick={canGoBack ? () => setStep(i) : undefined}
+                >
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
                     style={
                       i < step ? { backgroundColor: brand1, color: '#fff', border: 'none' }
@@ -478,14 +483,15 @@ export default function Scheduler() {
                     }>
                     {i < step ? '✓' : i + 1}
                   </div>
-                  <span className="text-xs font-medium hidden sm:block whitespace-nowrap">{label}</span>
+                  <span className={`text-xs font-medium hidden sm:block whitespace-nowrap ${canGoBack ? 'underline underline-offset-2' : ''}`}>{label}</span>
                 </div>
                 {i < STEPS.length - 1 && (
                   <div className="w-6 h-0.5 mx-1.5"
                     style={{ backgroundColor: i < step ? brand1 : '#e5e7eb' }} />
                 )}
               </div>
-            ))}
+            )})}
+
           </div>
         </div>
 
