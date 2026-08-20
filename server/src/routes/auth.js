@@ -1,12 +1,10 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { OAuth2Client } from 'google-auth-library'
 import prisma from '../lib/prisma.js'
 import { verifyToken } from '../middleware/auth.js'
 
 const router = Router()
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 
 const signToken = (lawyerId) =>
   jwt.sign({ sub: lawyerId }, process.env.JWT_SECRET, {
@@ -59,38 +57,6 @@ router.post('/login', async (req, res) => {
     return res.json({ token: signToken(lawyer.id), lawyer: sanitize(lawyer) })
   } catch {
     return res.status(500).json({ error: 'Erro ao autenticar' })
-  }
-})
-
-// POST /api/auth/google  (recebe credential do Google Identity Services)
-router.post('/google', async (req, res) => {
-  const { credential } = req.body
-  if (!credential) return res.status(400).json({ error: 'credential é obrigatório' })
-
-  try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    })
-    const { sub: googleId, email, name, picture: avatarUrl } = ticket.getPayload()
-
-    let lawyer = await prisma.lawyer.findFirst({
-      where: { OR: [{ googleId }, { email }] },
-    })
-
-    if (!lawyer) {
-      lawyer = await prisma.lawyer.create({ data: { name, email, googleId, avatarUrl } })
-      await createDefaultSettings(lawyer.id)
-    } else if (!lawyer.googleId) {
-      lawyer = await prisma.lawyer.update({
-        where: { id: lawyer.id },
-        data: { googleId, avatarUrl },
-      })
-    }
-
-    return res.json({ token: signToken(lawyer.id), lawyer: sanitize(lawyer) })
-  } catch {
-    return res.status(401).json({ error: 'Token Google inválido' })
   }
 })
 
