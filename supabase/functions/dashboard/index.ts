@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
       periodEnd = new Date(today.getTime() + 86_400_000 - 1)
     }
 
-    const [todayRes, tomorrowRes, receivablesRes, newClientsRes, newApptRes, nextApptRes] =
+    const [todayRes, tomorrowRes, receivablesRes, receivedRes, newClientsRes, newApptRes, nextApptRes] =
       await Promise.all([
         sb.from('Appointment')
           .select('id', { count: 'exact', head: true })
@@ -58,6 +58,12 @@ Deno.serve(async (req) => {
           .eq('status', 'PENDING')
           .gte('createdAt', periodStart.toISOString())
           .lte('createdAt', periodEnd.toISOString()),
+
+        sb.from('Payment')
+          .select('amount')
+          .eq('status', 'PAID')
+          .gte('paidAt', periodStart.toISOString())
+          .lte('paidAt', periodEnd.toISOString()),
 
         sb.from('Client')
           .select('id', { count: 'exact', head: true })
@@ -79,16 +85,15 @@ Deno.serve(async (req) => {
           .maybeSingle(),
       ])
 
-    const receivables = (receivablesRes.data ?? []).reduce(
-      (sum: number, p: { amount: string }) => sum + parseFloat(p.amount),
-      0
-    )
+    const sum = (rows: { amount: string }[]) =>
+      rows.reduce((acc, p) => acc + parseFloat(p.amount), 0)
 
     return Response.json(
       {
         todayCount: todayRes.count ?? 0,
         tomorrowCount: tomorrowRes.count ?? 0,
-        receivables,
+        receivables: sum(receivablesRes.data ?? []),
+        received: sum(receivedRes.data ?? []),
         newClients: newClientsRes.count ?? 0,
         newAppointments: newApptRes.count ?? 0,
         nextAppointment: nextApptRes.data ?? null,

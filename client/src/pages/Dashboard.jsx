@@ -269,10 +269,15 @@ export default function Dashboard() {
               label="Compromissos amanhã"
             />
             <MetricBlock
-              value={`R$ ${data.receivables.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-              label="Recebíveis no período"
+              value={`R$ ${(data.received ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              label="Recebido no período"
               sub={PERIODS.find(p => p.value === period)?.label}
               accent
+            />
+            <MetricBlock
+              value={`R$ ${data.receivables.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+              label="A receber no período"
+              sub={PERIODS.find(p => p.value === period)?.label}
             />
             <MetricBlock
               value={data.newClients}
