@@ -150,6 +150,8 @@ export default function Scheduler() {
   const [detectingSpecialty, setDetectingSpecialty] = useState(false)
   const [monthBlocked, setMonthBlocked] = useState(false)
   const [paymentConfirmed, setPaymentConfirmed] = useState(null)
+  const [checkingPayment, setCheckingPayment] = useState(false)
+  const [checkPaymentMsg, setCheckPaymentMsg] = useState('')
   const recognitionRef = useRef(null)
   const baseDescRef = useRef('')
 
@@ -326,8 +328,7 @@ export default function Scheduler() {
         selectedSlot,
       })
       if (data.asaasPaymentUrl) {
-        window.location.href = data.asaasPaymentUrl
-        return
+        window.open(data.asaasPaymentUrl, '_blank', 'noopener,noreferrer')
       }
       setResult({ ...data, specialty })
       setStep(4)
@@ -336,6 +337,23 @@ export default function Scheduler() {
     } finally {
       setBooking(false)
     }
+  }
+
+  const checkPayment = async () => {
+    if (!result?.appointmentId) return
+    setCheckingPayment(true)
+    setCheckPaymentMsg('')
+    try {
+      const { data } = await publicApi.get(`/scheduler/${slug}/appointment?apptId=${result.appointmentId}`)
+      if (data.status === 'CONFIRMED') {
+        setResult(r => ({ ...r, pending: false }))
+      } else {
+        setCheckPaymentMsg('Pagamento ainda não confirmado. Aguarde alguns instantes e tente novamente.')
+      }
+    } catch {
+      setCheckPaymentMsg('Não foi possível verificar. Tente novamente em breve.')
+    }
+    setCheckingPayment(false)
   }
 
   if (notFound) return (
@@ -931,13 +949,24 @@ export default function Scheduler() {
 
                 {result.pending ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 space-y-3">
-                    <p className="text-amber-800 font-semibold text-sm">⏳ Aguardando confirmação do pagamento</p>
-                    <p className="text-amber-700 text-xs">Você receberá um email com todos os detalhes da consulta assim que o pagamento for aprovado.</p>
+                    <p className="text-amber-800 font-semibold text-sm">⏳ Pagamento em andamento</p>
+                    <p className="text-amber-700 text-xs">
+                      A página de pagamento foi aberta em uma nova aba. Conclua o pagamento lá e retorne aqui para confirmar.
+                    </p>
                     {result.asaasPaymentUrl && (
                       <a href={result.asaasPaymentUrl} target="_blank" rel="noopener noreferrer"
                         className="block w-full py-2.5 rounded-lg text-center bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors">
-                        Ir para pagamento →
+                        Abrir página de pagamento →
                       </a>
+                    )}
+                    <button
+                      onClick={checkPayment}
+                      disabled={checkingPayment}
+                      className="w-full py-2.5 rounded-lg border-2 border-amber-300 text-amber-800 text-sm font-semibold hover:bg-amber-100 transition-colors disabled:opacity-50">
+                      {checkingPayment ? 'Verificando...' : '✓ Já paguei — confirmar agendamento'}
+                    </button>
+                    {checkPaymentMsg && (
+                      <p className="text-xs text-amber-700 text-center">{checkPaymentMsg}</p>
                     )}
                   </div>
                 ) : (
