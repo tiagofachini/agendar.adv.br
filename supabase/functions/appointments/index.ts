@@ -21,9 +21,12 @@ function cancellationEmailHtml(p: {
   clientName: string; dateStr: string; timeStr: string; specialty: string
 }) {
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
-  <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
-    <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
-    <p style="color:#a0aec0;margin:8px 0 0">Consulta cancelada</p>
+  <div style="background:#0a2070;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+    <div style="display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
+      <img src="https://agendar.adv.br/logo.png" alt="AgendarAdv" style="height:36px;width:36px;object-fit:contain;vertical-align:middle" />
+      <span style="color:white;font-size:22px;font-weight:700;letter-spacing:-0.5px;vertical-align:middle">Agendar<span style="color:#48b828">Adv</span></span>
+    </div>
+    <p style="color:#a0aec0;margin:0;font-size:14px">Consulta cancelada</p>
   </div>
   <p>Um agendamento foi cancelado.</p>
   <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
