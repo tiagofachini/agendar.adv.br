@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { format, differenceInSeconds } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { differenceInSeconds } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 
@@ -23,13 +22,11 @@ function MetricBlock({ value, label, sub, accent }) {
 function Countdown({ appointment }) {
   const navigate = useNavigate()
   const [remaining, setRemaining] = useState('')
-  const [secsLeft, setSecsLeft] = useState(Infinity)
 
   useEffect(() => {
     if (!appointment) return
     const update = () => {
       const secs = differenceInSeconds(new Date(appointment.date), new Date())
-      setSecsLeft(secs)
       if (secs <= 0) { setRemaining('Agora!'); return }
       const h = Math.floor(secs / 3600)
       const m = Math.floor((secs % 3600) / 60)
@@ -53,8 +50,19 @@ function Countdown({ appointment }) {
     </div>
   )
 
-  const meetingReady = secsLeft <= 300
-  const hasDetails = appointment.clientEmail || appointment.clientWhatsapp || appointment.description
+  const apptDate = new Date(appointment.date)
+  const dateStr = apptDate.toLocaleDateString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+  })
+  const timeStr = apptDate.toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
   const waPhone = appointment.clientWhatsapp ? appointment.clientWhatsapp.replace(/\D/g, '') : null
 
   const statusLabel = {
@@ -74,87 +82,97 @@ function Countdown({ appointment }) {
   return (
     <div className="bg-navy-900 rounded-2xl shadow-sm text-white overflow-hidden">
       <div className="p-6">
-        <div className="text-xs text-brand-400 font-semibold uppercase tracking-wide mb-4">Próximo compromisso</div>
-
-        {/* Name + countdown */}
-        <div className="flex items-start justify-between gap-4 mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="font-bold text-xl text-white leading-tight truncate">{appointment.clientName}</div>
-            <div className="text-brand-400 text-sm font-medium mt-0.5">{appointment.specialty}</div>
+        <div className="flex items-center justify-between mb-5">
+          <div className="text-xs text-brand-400 font-semibold uppercase tracking-wide">Próximo compromisso</div>
+          <div className="text-right">
+            <div className="text-2xl font-extrabold tabular-nums text-brand-400">{remaining || '—'}</div>
+            <div className="text-gray-500 text-xs">para iniciar</div>
           </div>
-          <div className="text-right flex-shrink-0">
-            <div className={`text-3xl font-extrabold tabular-nums leading-none ${meetingReady ? 'text-green-400' : 'text-brand-400'}`}>
-              {remaining}
+        </div>
+
+        <div className="space-y-4">
+          {/* Dados do cliente */}
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Dados do cliente</div>
+            <div className="bg-white/5 rounded-xl p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400 text-xs w-20 shrink-0">Nome</span>
+                <span className="text-white text-sm font-semibold">{appointment.clientName}</span>
+              </div>
+              {appointment.clientEmail && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs w-20 shrink-0">E-mail</span>
+                  <span className="text-gray-300 text-xs truncate">{appointment.clientEmail}</span>
+                </div>
+              )}
+              {appointment.clientWhatsapp && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs w-20 shrink-0">WhatsApp</span>
+                  <a
+                    href={`https://wa.me/${waPhone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-400 hover:underline text-xs">
+                    {appointment.clientWhatsapp}
+                  </a>
+                </div>
+              )}
             </div>
-            <div className="text-gray-500 text-xs mt-1">para iniciar</div>
+          </div>
+
+          {/* Dados do compromisso */}
+          <div>
+            <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Dados do compromisso</div>
+            <div className="bg-white/5 rounded-xl p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <span className="text-gray-400 text-xs w-20 shrink-0 mt-0.5">Data</span>
+                <span className="text-gray-300 text-xs">{dateStr} às {timeStr}</span>
+              </div>
+              {appointment.specialty && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs w-20 shrink-0">Natureza</span>
+                  <span className="text-gray-300 text-xs">{appointment.specialty}</span>
+                </div>
+              )}
+              {appointment.duration && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs w-20 shrink-0">Duração</span>
+                  <span className="text-gray-300 text-xs">{appointment.duration} min</span>
+                </div>
+              )}
+              {appointment.status && (
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 text-xs w-20 shrink-0">Status</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>{statusLabel}</span>
+                </div>
+              )}
+              {appointment.description && (
+                <div className="flex items-start gap-2">
+                  <span className="text-gray-400 text-xs w-20 shrink-0 mt-0.5">Observação</span>
+                  <span className="text-gray-300 text-xs overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                    {appointment.description}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Date + meta */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-gray-400 mb-4">
-          <span>📅 {format(new Date(appointment.date), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}</span>
-          {appointment.duration && (
-            <span className="bg-white/10 px-2 py-0.5 rounded-full">{appointment.duration} min</span>
-          )}
-          {appointment.status && (
-            <span className={`px-2 py-0.5 rounded-full font-medium ${statusColor}`}>{statusLabel}</span>
-          )}
-        </div>
-
-        {/* Client details */}
-        {hasDetails && (
-          <div className="bg-white/5 rounded-xl p-3 space-y-2 mb-4">
-            {appointment.clientEmail && (
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <span>✉</span>
-                <span className="truncate">{appointment.clientEmail}</span>
-              </div>
-            )}
-            {appointment.clientWhatsapp && (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-400">📱</span>
-                <a
-                  href={`https://wa.me/${waPhone}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-green-400 hover:underline">
-                  {appointment.clientWhatsapp}
-                </a>
-              </div>
-            )}
-            {appointment.description && (
-              <div className="flex items-start gap-2 text-xs text-gray-400">
-                <span className="mt-0.5 flex-shrink-0">📝</span>
-                <span className="overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                  {appointment.description}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 mt-5">
           <button
-            onClick={() => navigate('/agenda')}
+            onClick={() => navigate('/appointments')}
             className="flex-1 py-2.5 rounded-xl border border-white/20 text-white/80 text-sm font-medium hover:bg-white/10 transition-colors">
-            Ver detalhes
+            Ver Detalhes
           </button>
-
           {appointment.meetingLink && (
-            meetingReady ? (
-              <a
-                href={appointment.meetingLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 py-2.5 rounded-xl bg-green-500 text-white text-sm font-bold text-center hover:bg-green-400 transition-colors animate-pulse">
-                🔗 Abrir reunião →
-              </a>
-            ) : (
-              <div className="flex-1 py-2.5 rounded-xl bg-white/8 text-white/35 text-sm font-medium text-center cursor-not-allowed select-none border border-white/10">
-                🔒 Disponível em {remaining}
-              </div>
-            )
+            <a
+              href={appointment.meetingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 py-2.5 rounded-xl bg-brand-500 text-navy-900 text-sm font-bold text-center hover:bg-brand-400 transition-colors">
+              🔗 Acessar Reunião
+            </a>
           )}
         </div>
       </div>
