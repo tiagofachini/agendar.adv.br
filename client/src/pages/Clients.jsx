@@ -345,63 +345,83 @@ function ClientDetail({ clientId, onClose, onEdit }) {
             </div>
           )}
 
-          {/* Histórico de agendamentos */}
-          {client.appointments?.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-navy-900 mb-3">Agendamentos</h3>
-              <div className="space-y-2">
-                {client.appointments.map(a => (
-                  <div key={a.id} className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <div>
-                        <span className="text-sm font-medium text-gray-800">
-                          {new Date(a.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </span>
-                        <span className="text-xs text-gray-400 ml-2">
-                          {new Date(a.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[a.status]}`}>
-                        {STATUS_LABEL[a.status]}
-                      </span>
-                    </div>
-                    {a.specialty && <p className="text-xs text-gray-500">{a.specialty}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Histórico unificado: consultas + pagamentos */}
+          {(client.appointments?.length > 0 || client.payments?.length > 0) && (() => {
+            const paymentByApptId = Object.fromEntries(
+              (client.payments ?? []).filter(p => p.appointmentId).map(p => [p.appointmentId, p])
+            )
+            const apptIds = new Set((client.appointments ?? []).map(a => a.id))
+            const orphanPayments = (client.payments ?? []).filter(p => !p.appointmentId || !apptIds.has(p.appointmentId))
+            const sortedAppts = [...(client.appointments ?? [])].sort((a, b) => new Date(b.date) - new Date(a.date))
 
-          {/* Cobranças */}
-          {client.payments?.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-navy-900 mb-3">Cobranças</h3>
-              <div className="space-y-2">
-                {client.payments.map(p => {
-                  const ps = PAY_STATUS[p.status] || PAY_STATUS.CANCELLED
-                  return (
-                    <div key={p.id} className="bg-gray-50 rounded-lg p-3 flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800">{fmtBRL(p.amount)}</p>
-                        <p className="text-xs text-gray-400">
-                          {p.dueDate
-                            ? `Venc. ${new Date(p.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}`
-                            : new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </p>
+            return (
+              <div>
+                <h3 className="font-semibold text-navy-900 mb-3">Histórico de consultas</h3>
+                <div className="space-y-2">
+                  {sortedAppts.map(a => {
+                    const pmt = paymentByApptId[a.id]
+                    const ps = pmt ? (PAY_STATUS[pmt.status] || PAY_STATUS.CANCELLED) : null
+                    return (
+                      <div key={a.id} className="bg-gray-50 rounded-xl p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                              <span className="text-sm font-medium text-gray-800">
+                                {new Date(a.date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {new Date(a.date).toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            {a.specialty && <p className="text-xs text-gray-500">{a.specialty}</p>}
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[a.status]}`}>
+                              {STATUS_LABEL[a.status]}
+                            </span>
+                            {pmt && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-semibold text-navy-900">{fmtBRL(pmt.amount)}</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${ps.color}`}>{ps.label}</span>
+                                {pmt.asaasUrl && pmt.status !== 'PAID' && pmt.status !== 'CANCELLED' && (
+                                  <a href={pmt.asaasUrl} target="_blank" rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline">Pagar →</a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ps.color}`}>{ps.label}</span>
-                        {p.asaasUrl && p.status !== 'PAID' && p.status !== 'CANCELLED' && (
-                          <a href={p.asaasUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:underline">Pagar →</a>
-                        )}
+                    )
+                  })}
+
+                  {orphanPayments.map(p => {
+                    const ps = PAY_STATUS[p.status] || PAY_STATUS.CANCELLED
+                    return (
+                      <div key={p.id} className="bg-gray-50 rounded-xl p-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-400 mb-0.5">Cobrança avulsa</p>
+                          <p className="text-sm font-medium text-gray-800">{fmtBRL(p.amount)}</p>
+                          <p className="text-xs text-gray-400">
+                            {p.dueDate
+                              ? `Venc. ${new Date(p.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                              : new Date(p.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ps.color}`}>{ps.label}</span>
+                          {p.asaasUrl && p.status !== 'PAID' && p.status !== 'CANCELLED' && (
+                            <a href={p.asaasUrl} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline">Pagar →</a>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Enviar mensagem */}
           <div className="border border-gray-200 rounded-2xl overflow-hidden">
