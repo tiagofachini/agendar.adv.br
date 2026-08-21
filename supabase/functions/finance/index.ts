@@ -25,25 +25,25 @@ Deno.serve(async (req) => {
 
   try {
     if (req.method === 'GET' && id === 'balance') {
-      const { data: lawyer } = await sb
-        .from('Lawyer')
-        .select('stripeAccountId,stripeChargesEnabled')
+      const { data: settings } = await sb
+        .from('LawyerSettings')
+        .select('asaasApiKey')
         .maybeSingle()
 
-      if (!lawyer?.stripeAccountId || !lawyer.stripeChargesEnabled) {
-        return Response.json({ available: null, pending: null }, { headers: cors })
+      if (!settings?.asaasApiKey) {
+        return Response.json({ balance: null }, { headers: cors })
       }
 
-      const Stripe = (await import('https://esm.sh/stripe@14.21.0?target=deno&no-check')).default
-      const st = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2023-10-16' as const })
-      const balance = await st.balance.retrieve({ stripeAccount: lawyer.stripeAccountId })
-      const brl = (amounts: { currency: string; amount: number }[]) =>
-        (amounts.find(a => a.currency === 'brl')?.amount ?? 0) / 100
+      const res = await fetch('https://www.asaas.com/api/v3/finance/balance', {
+        headers: { access_token: settings.asaasApiKey },
+      })
 
-      return Response.json(
-        { available: brl(balance.available), pending: brl(balance.pending) },
-        { headers: cors }
-      )
+      if (!res.ok) {
+        return Response.json({ balance: null }, { headers: cors })
+      }
+
+      const asaasData = await res.json()
+      return Response.json({ balance: asaasData.balance ?? null }, { headers: cors })
     }
 
     if (req.method === 'PUT' && id && id !== 'bulk') {

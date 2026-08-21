@@ -270,10 +270,11 @@ export default function Finance() {
           <button onClick={selectAll} className="text-xs text-gray-300 hover:text-white underline">Todos</button>
           <div className="flex items-center gap-2">
             <select value={bulkAction} onChange={e => setBulkAction(e.target.value)}
-              className="text-sm bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-white focus:outline-none">
-              <option value="">Alterar status...</option>
+              className="text-sm rounded-lg px-2 py-1 focus:outline-none"
+              style={{ background: '#1e3a5f', color: 'white', border: '1px solid rgba(255,255,255,0.2)' }}>
+              <option value="" style={{ background: '#1e3a5f', color: 'white' }}>Alterar status...</option>
               {BULK_STATUS_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value} style={{ background: '#1e3a5f', color: 'white' }}>{o.label}</option>
               ))}
             </select>
             {bulkAction && (
