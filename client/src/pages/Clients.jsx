@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
@@ -240,6 +241,7 @@ function ClientModal({ clientId, onClose, onSaved }) {
 // ── Painel lateral de detalhes ────────────────────────────────────────────────
 function ClientDetail({ clientId, onClose, onEdit }) {
   const isPro = true
+  const navigate = useNavigate()
   const [client, setClient] = useState(null)
   const [msgForm, setMsgForm] = useState({ channel: 'email', subject: '', body: '' })
   const [sendLoading, setSendLoading] = useState(false)
@@ -376,9 +378,16 @@ function ClientDetail({ clientId, onClose, onEdit }) {
                             {a.specialty && <p className="text-xs text-gray-500">{a.specialty}</p>}
                           </div>
                           <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[a.status]}`}>
-                              {STATUS_LABEL[a.status]}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLOR[a.status]}`}>
+                                {STATUS_LABEL[a.status]}
+                              </span>
+                              <button
+                                onClick={() => { onClose(); navigate('/appointments', { state: { openAppointment: a } }) }}
+                                className="text-xs text-navy-700 hover:underline font-medium">
+                                Abrir →
+                              </button>
+                            </div>
                             {pmt && (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-semibold text-navy-900">{fmtBRL(pmt.amount)}</span>

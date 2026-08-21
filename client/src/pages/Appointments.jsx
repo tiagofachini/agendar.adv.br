@@ -276,77 +276,121 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
               </select>
             </div>
           </>}
-          {!isNew && (
-            <div className="bg-gray-50 rounded-xl p-4 space-y-1">
-              <p className="font-semibold text-navy-900">{initial.clientName}</p>
-              <p className="text-sm text-gray-500">{initial.specialty}</p>
-              <p className="text-sm text-gray-400">{format(new Date(initial.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
-              {(() => {
-                const pmt = initial.payments?.[0]
-                if (!pmt) return null
-                const st = PAYMENT_STATUS_STYLE[pmt.status]
-                if (!st) return null
-                return (
-                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-200">
-                    <span className="text-xs text-gray-400">Pagamento</span>
-                    <div className="flex items-center gap-2">
+          {!isNew && (() => {
+            const pmt = initial.payments?.[0]
+            const pmtStyle = pmt ? PAYMENT_STATUS_STYLE[pmt.status] : null
+            const whatsapp = initial.client?.whatsapp || initial.clientWhatsapp
+            const email = initial.client?.email || initial.clientEmail
+            const waDigits = whatsapp ? whatsapp.replace(/\D/g, '') : ''
+            const waLink = waDigits ? `https://wa.me/${waDigits.startsWith('55') ? waDigits : '55' + waDigits}` : null
+            const showMeetingBtn = initial.meetingLink && initial.status === 'CONFIRMED' && pmt?.status === 'PAID'
+
+            return (
+              <>
+                {/* Link de reunião — destaque máximo */}
+                {showMeetingBtn && (
+                  <a href={initial.meetingLink} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-500 transition-colors">
+                    🎥 Acessar Reunião Online
+                  </a>
+                )}
+
+                {/* Dados do cliente */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cliente</p>
+                  <p className="font-bold text-navy-900 text-base">{initial.clientName}</p>
+                  {email && (
+                    <a href={`mailto:${email}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-navy-900">
+                      <span>✉️</span> {email}
+                    </a>
+                  )}
+                  {waLink && (
+                    <a href={waLink} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-green-700 hover:text-green-600">
+                      <span>📱</span> {whatsapp}
+                    </a>
+                  )}
+                </div>
+
+                {/* Dados do compromisso */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Compromisso</p>
+                  <p className="text-sm text-gray-700">{initial.specialty}</p>
+                  <p className="text-sm font-medium text-navy-900">
+                    {format(new Date(initial.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    {initial.duration ? ` · ${initial.duration} min` : ''}
+                  </p>
+                  {pmt && pmtStyle && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-gray-200 mt-1">
+                      <span className="text-xs text-gray-400">Pagamento:</span>
                       {pmt.amount != null && (
                         <span className="text-xs font-semibold text-navy-900">
                           R$ {Number(pmt.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                       )}
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${st.color}`}>{st.label}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${pmtStyle.color}`}>{pmtStyle.label}</span>
+                      {pmt.asaasUrl && pmt.status !== 'PAID' && pmt.status !== 'CANCELLED' && (
+                        <a href={pmt.asaasUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline ml-auto">Pagar →</a>
+                      )}
                     </div>
-                  </div>
-                )
-              })()}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
-              <input required type="date" className={inputCls} value={form.date} onChange={upd('date')} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Horário *</label>
-              <input required type="time" className={inputCls} value={form.time} onChange={upd('time')} />
-            </div>
-          </div>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select className={inputCls} value={form.status} onChange={upd('status')}>
+                    <option value="PENDING_PAYMENT">Aguardando pagamento</option>
+                    <option value="CONFIRMED">Confirmado</option>
+                    <option value="COMPLETED">Realizado</option>
+                    <option value="CANCELLED">Cancelado</option>
+                  </select>
+                </div>
+
+                {/* Observações do cliente */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Observações do cliente</label>
+                  <textarea rows={2} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
+                    placeholder="Descrição relatada pelo cliente" />
+                </div>
+
+                {/* Anotações do atendimento — área focal */}
+                <div>
+                  <label className="block text-sm font-semibold text-navy-900 mb-2">Anotações do atendimento</label>
+                  <RichTextEditor
+                    value={form.attendanceNotes}
+                    onChange={(html) => setForm(f => ({ ...f, attendanceNotes: html }))}
+                    isPro={isPro}
+                  />
+                </div>
+              </>
+            )
+          })()}
           {isNew && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duração</label>
-              <select className={inputCls} value={form.duration} onChange={upd('duration')}>
-                <option value={30}>30 minutos</option>
-                <option value={60}>60 minutos</option>
-                <option value={120}>120 minutos</option>
-              </select>
-            </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {isNew ? 'Observações do cliente' : 'Observações do cliente'}
-            </label>
-            <textarea rows={3} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
-              placeholder="Descrição relatada pelo cliente" />
-          </div>
-          {!isNew && (
             <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                  <input required type="date" className={inputCls} value={form.date} onChange={upd('date')} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Horário *</label>
+                  <input required type="time" className={inputCls} value={form.time} onChange={upd('time')} />
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select className={inputCls} value={form.status} onChange={upd('status')}>
-                  <option value="PENDING_PAYMENT">Aguardando pagamento</option>
-                  <option value="CONFIRMED">Confirmado</option>
-                  <option value="COMPLETED">Realizado</option>
-                  <option value="CANCELLED">Cancelado</option>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duração</label>
+                <select className={inputCls} value={form.duration} onChange={upd('duration')}>
+                  <option value={30}>30 minutos</option>
+                  <option value={60}>60 minutos</option>
+                  <option value={120}>120 minutos</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Detalhes do atendimento</label>
-                <RichTextEditor
-                  value={form.attendanceNotes}
-                  onChange={(html) => setForm(f => ({ ...f, attendanceNotes: html }))}
-                  isPro={isPro}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Observações do cliente</label>
+                <textarea rows={3} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
+                  placeholder="Descrição relatada pelo cliente" />
               </div>
             </>
           )}
