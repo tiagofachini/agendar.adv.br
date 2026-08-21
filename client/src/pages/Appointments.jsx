@@ -193,6 +193,16 @@ function RichTextEditor({ value, onChange, placeholder = 'Digite as anotações 
   )
 }
 
+// Detecta plataformas que bloqueiam iframe
+function isEmbeddable(url) {
+  if (!url) return false
+  try {
+    const h = new URL(url).hostname
+    const blocked = ['meet.google.com', 'zoom.us', 'teams.microsoft.com', 'teams.live.com', 'webex.com']
+    return !blocked.some(d => h.includes(d))
+  } catch { return false }
+}
+
 // ── Drawer de compromisso ────────────────────────────────────────────────
 function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, isPro }) {
   const isNew = !initial?.id
@@ -210,16 +220,17 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [meetingMode, setMeetingMode] = useState(false)
 
   const save = async (e) => {
-    e.preventDefault(); setLoading(true); setError('')
+    e?.preventDefault(); setLoading(true); setError('')
     try {
       if (isNew) {
         const { date, time, ...formRest } = form
         const { data } = await api.post('/appointments', { ...formRest, date: `${date}T${time}:00-03:00` })
         onSaved(data)
       } else {
-        const { data } = await api.put(`/appointments/${initial.id}`, {
+        await api.put(`/appointments/${initial.id}`, {
           status: form.status,
           description: form.description,
           attendanceNotes: form.attendanceNotes,
@@ -241,6 +252,122 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
   }
 
   const upd = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }))
+
+  // ── Modo Reunião: tela cheia com iframe + painel de anotações ──────────
+  if (!isNew && meetingMode) {
+    const embeddable = isEmbeddable(initial.meetingLink)
+    const whatsapp = initial.client?.whatsapp || initial.clientWhatsapp
+    const waDigits = whatsapp ? whatsapp.replace(/\D/g, '') : ''
+    const waLink = waDigits ? `https://wa.me/${waDigits.startsWith('55') ? waDigits : '55' + waDigits}` : null
+
+    return (
+      <div className="fixed inset-0 z-50 flex bg-gray-900">
+        {/* Esquerda: reunião */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="bg-navy-950 px-4 py-2 flex items-center gap-3 flex-shrink-0" style={{ background: '#0f1f36' }}>
+            <span className="text-white text-sm font-semibold truncate">{initial.clientName} · {initial.specialty}</span>
+            <div className="ml-auto flex items-center gap-2">
+              {!embeddable && (
+                <a href={initial.meetingLink} target="_blank" rel="noopener noreferrer"
+                  className="px-3 py-1 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-500">
+                  Abrir reunião →
+                </a>
+              )}
+              <button onClick={() => setMeetingMode(false)}
+                className="text-gray-400 hover:text-white text-xs border border-gray-600 rounded-lg px-3 py-1">
+                Sair do modo reunião
+              </button>
+            </div>
+          </div>
+
+          {embeddable ? (
+            <iframe
+              src={initial.meetingLink}
+              className="flex-1 w-full border-0"
+              allow="camera; microphone; display-capture; fullscreen; clipboard-write; autoplay"
+              allowFullScreen
+            />
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-10 gap-6">
+              <div className="text-5xl">📹</div>
+              <div>
+                <p className="text-white text-lg font-bold mb-2">
+                  {(() => {
+                    try { return new URL(initial.meetingLink).hostname } catch { return 'Esta plataforma' }
+                  })()} não permite incorporação
+                </p>
+                <p className="text-gray-400 text-sm max-w-sm mx-auto">
+                  Google Meet, Zoom e Teams bloqueiam a exibição dentro de outros sistemas por questões de segurança.
+                  Abra a reunião em uma janela separada e posicione-a ao lado desta tela.
+                </p>
+              </div>
+              <a href={initial.meetingLink} target="_blank" rel="noopener noreferrer"
+                className="px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-500 transition-colors text-sm">
+                🎥 Abrir reunião em nova janela
+              </a>
+              <p className="text-gray-500 text-xs max-w-xs">
+                Dica: no Windows use Win+← / Win+→ para encaixar janelas lado a lado. No Mac use Stage Manager ou Mission Control.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Direita: painel de anotações */}
+        <div className="w-96 bg-white flex flex-col overflow-hidden flex-shrink-0">
+          <div className="bg-navy-900 text-white px-4 py-3 flex-shrink-0">
+            <p className="font-bold text-sm">{initial.clientName}</p>
+            <p className="text-gray-400 text-xs">{initial.specialty} · {format(new Date(initial.date), "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
+            <div className="flex gap-3 mt-1.5 text-xs">
+              {(initial.client?.email || initial.clientEmail) && (
+                <a href={`mailto:${initial.client?.email || initial.clientEmail}`} className="text-gray-300 hover:text-white truncate">
+                  ✉️ {initial.client?.email || initial.clientEmail}
+                </a>
+              )}
+              {waLink && (
+                <a href={waLink} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 whitespace-nowrap">
+                  📱 WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {initial.description && (
+              <div>
+                <p className="text-xs font-medium text-gray-400 mb-1">Observações do cliente no agendamento</p>
+                <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">{initial.description}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs font-semibold text-navy-900 mb-2">Anotações do atendimento</p>
+              <RichTextEditor
+                value={form.attendanceNotes}
+                onChange={(html) => setForm(f => ({ ...f, attendanceNotes: html }))}
+                isPro={isPro}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+              <select className={inputCls} value={form.status} onChange={upd('status')}>
+                <option value="PENDING_PAYMENT">Aguardando pagamento</option>
+                <option value="CONFIRMED">Confirmado</option>
+                <option value="COMPLETED">Realizado</option>
+                <option value="CANCELLED">Cancelado</option>
+              </select>
+            </div>
+            {error && <p className="text-red-500 text-xs">{error}</p>}
+          </div>
+
+          <div className="p-4 border-t border-gray-100 flex-shrink-0">
+            <button onClick={save} disabled={loading}
+              className="w-full py-2.5 rounded-xl bg-navy-900 text-white font-bold disabled:opacity-50 hover:bg-navy-800 transition-colors text-sm">
+              {loading ? 'Salvando...' : '💾 Salvar anotações'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-40 flex">
@@ -330,10 +457,16 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
 
                   {/* Botão de reunião — dentro do bloco de compromisso */}
                   {showMeetingBtn && (
-                    <a href={initial.meetingLink} target="_blank" rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-500 transition-colors mt-1">
-                      🎥 Acessar Reunião Online
-                    </a>
+                    <div className="flex gap-2 mt-1">
+                      <a href={initial.meetingLink} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-1.5 flex-1 py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-500 transition-colors">
+                        🎥 Acessar Reunião
+                      </a>
+                      <button type="button" onClick={() => setMeetingMode(true)}
+                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-navy-800 text-white font-bold text-sm hover:bg-navy-700 transition-colors whitespace-nowrap">
+                        ⬛ Modo Reunião
+                      </button>
+                    </div>
                   )}
 
                   <div className="border-t border-gray-200 pt-3 space-y-3">
