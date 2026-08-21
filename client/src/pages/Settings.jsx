@@ -71,6 +71,27 @@ function InfoBlock({ children }) {
   )
 }
 
+function SectionHero({ icon, title, objective, benefit }) {
+  return (
+    <div className="bg-navy-900 rounded-2xl px-6 py-5 mb-5 flex gap-5 items-start text-white">
+      <span className="text-4xl flex-shrink-0 mt-0.5">{icon}</span>
+      <div className="min-w-0 w-full">
+        <h2 className="font-bold text-lg leading-tight mb-3">{title}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">O que você faz aqui</p>
+            <p className="text-sm text-gray-300 leading-relaxed">{objective}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-brand-400 uppercase tracking-wider mb-1">Qual o benefício</p>
+            <p className="text-sm text-gray-300 leading-relaxed">{benefit}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const inputCls = 'w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700'
 
 function LogoUpload({ currentUrl, lawyerId, onChange }) {
@@ -225,6 +246,12 @@ function ProfileSection({ data, onSaved }) {
 
   return (
     <>
+    <SectionHero
+      icon="🏢"
+      title="Perfil do escritório"
+      objective="Configure sua identidade visual — logo, cores, endereço e especialidades do escritório."
+      benefit="Suas informações aparecem no agendador público. Um perfil completo transmite profissionalismo e aumenta a confiança do cliente antes de agendar."
+    />
     <Section title="Perfil do escritório" desc="Sua vitrine pública e dados internos." onSubmit={save} loading={loading} saved={saved} error={error}>
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Identidade visual</p>
@@ -529,6 +556,13 @@ function SchedulerSection({ data, onSaved, banner }) {
   }
 
   return (
+    <>
+    <SectionHero
+      icon="📋"
+      title="Agendador público"
+      objective="Defina o endereço exclusivo de agendamento, a duração das consultas e a mensagem de boas-vindas."
+      benefit="Clientes agendam sozinhos, sem telefonemas. Compartilhe o link e receba consultas 24 horas — até enquanto você está em atendimento."
+    />
     <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved} error={error}>
       {banner && (
         <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
@@ -600,6 +634,7 @@ function SchedulerSection({ data, onSaved, banner }) {
       </div>
 
     </Section>
+    </>
   )
 }
 
@@ -679,6 +714,12 @@ function MeetingsSection({ data, onSaved, banner }) {
 
   return (
     <div className="space-y-5">
+      <SectionHero
+        icon="🎥"
+        title="Reuniões e compromissos"
+        objective="Defina como suas consultas serão realizadas: por videoconferência integrada, link fixo ou presencialmente."
+        benefit="Um link de reunião exclusivo é gerado para cada novo compromisso — sem configuração manual nem troca de mensagens com o cliente."
+      />
       {banner && (
         <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
           <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-red-500'}`} />
@@ -859,6 +900,13 @@ function CalendarSection({ data, onSaved }) {
   const usedSpecialties = new Set(form.specialtyRates.map(r => r.specialty).filter(Boolean))
 
   return (
+    <>
+    <SectionHero
+      icon="📅"
+      title="Disponibilidade e valores"
+      objective="Configure seu horário de trabalho dia a dia, intervalos de almoço e os valores cobrados por especialidade."
+      benefit="O agendador exibe apenas os horários livres e calcula o valor automaticamente na cobrança — sem trabalho manual."
+    />
     <Section title="Configurações da agenda" onSubmit={save} loading={loading} saved={saved} error={error}>
       <InfoBlock>
         <p className="font-semibold text-navy-900">Defina sua disponibilidade e valores</p>
@@ -989,6 +1037,7 @@ function CalendarSection({ data, onSaved }) {
         </p>
       </Field>
     </Section>
+    </>
   )
 }
 
@@ -1018,21 +1067,35 @@ function FinancialSection({ data, onSaved }) {
 
   return (
     <div className="space-y-5">
-      <div className="bg-navy-900 rounded-2xl p-6 text-white">
-        <h3 className="font-bold text-lg mb-4">Como funciona o recebimento via Asaas?</h3>
-        <div className="space-y-4">
-          {[
-            ['1', 'Crie sua conta gratuita em asaas.com e obtenha sua chave de API na seção "Integrações".'],
-            ['2', 'Cole sua chave de API abaixo. Seus clientes poderão pagar via PIX, boleto ou cartão de crédito.'],
-            ['3', 'Após o pagamento, o agendamento é confirmado automaticamente e o cliente recebe um email de confirmação.'],
-          ].map(([n, text]) => (
-            <div key={n} className="flex gap-3 items-start">
-              <span className="flex-shrink-0 w-7 h-7 bg-brand-500 rounded-full flex items-center justify-center text-sm font-bold text-navy-900">{n}</span>
-              <p className="text-sm text-gray-300 leading-relaxed">{text}</p>
+      <SectionHero
+        icon="💳"
+        title="Pagamentos online"
+        objective="Conecte sua conta Asaas para aceitar pagamentos via PIX, boleto e cartão de crédito diretamente no agendamento."
+        benefit="Assim que o cliente paga, o agendamento é confirmado automaticamente e ele recebe um email — zero intervenção manual da sua parte."
+      />
+
+      {!f.asaasConnected && (
+        <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-navy-900 text-base mb-1">Ainda não tem conta Asaas?</p>
+            <p className="text-sm text-gray-500 leading-relaxed">Criar uma conta é gratuito e leva menos de dois minutos. Depois é só obter sua chave de API e colar abaixo para ativar os pagamentos.</p>
+            <div className="mt-3 space-y-1.5 text-sm text-gray-600">
+              {['Pix, boleto e cartão de crédito em uma única integração', 'Cobrança gerada automaticamente a cada agendamento', 'Agendamento confirmado assim que o pagamento é recebido'].map(item => (
+                <div key={item} className="flex items-center gap-2">
+                  <span className="text-brand-500 font-bold flex-shrink-0">✓</span> {item}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+          <a
+            href="https://www.asaas.com/r/c1a97b4c-0b72-4d6b-8d34-528ff0d823a5"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 px-6 py-3 rounded-xl bg-navy-900 text-white text-sm font-bold hover:bg-navy-800 transition-colors text-center whitespace-nowrap">
+            Criar conta grátis →
+          </a>
         </div>
-      </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-3">
@@ -1143,6 +1206,13 @@ function AlertsSection({ data, onSaved }) {
   )
 
   return (
+    <>
+    <SectionHero
+      icon="🔔"
+      title="Alertas e notificações"
+      objective="Escolha como você quer ser avisado sobre novos agendamentos e cancelamentos."
+      benefit="Saiba imediatamente quando um cliente agenda ou cancela — por email ou WhatsApp, sem precisar abrir o sistema."
+    />
     <Section title="Alertas de agendamento" desc="Receba avisos dos seus agendamentos." onSubmit={save} loading={loading} saved={saved} error={error}>
       <InfoBlock>
         <p className="font-semibold text-navy-900">Fique por dentro em tempo real</p>
@@ -1155,6 +1225,7 @@ function AlertsSection({ data, onSaved }) {
         <Toggle field="cancellationByWhatsapp" label="Cancelamento por WhatsApp" />
       </div>
     </Section>
+    </>
   )
 }
 
