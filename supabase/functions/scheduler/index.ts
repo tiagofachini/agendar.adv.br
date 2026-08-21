@@ -498,7 +498,7 @@ Deno.serve(async (req) => {
         const patch: Record<string, unknown> = { ...addressPatch }
         if (clientDocument && !existing.cpfCnpj) patch.cpfCnpj = clientDocument
         if (Object.keys(patch).length > 0) {
-          await sb.from('Client').update(patch).eq('id', clientId).catch(() => {})
+          try { await sb.from('Client').update(patch).eq('id', clientId) } catch (_) {}
         }
       } else {
         const { data: nc, error: ncErr } = await sb
