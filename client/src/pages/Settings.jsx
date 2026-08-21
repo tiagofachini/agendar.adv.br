@@ -249,8 +249,8 @@ function ProfileSection({ data, onSaved }) {
     <SectionHero
       icon="🏢"
       title="Perfil do escritório"
-      objective="Configure sua identidade visual — logo, cores, endereço e especialidades do escritório."
-      benefit="Suas informações aparecem no agendador público. Um perfil completo transmite profissionalismo e aumenta a confiança do cliente antes de agendar."
+      objective="Configure a identidade do escritório: logo, cores da marca, endereço e as especialidades que você atende."
+      benefit="Clientes veem seu perfil antes de agendar. Informações completas transmitem profissionalismo e aumentam a taxa de conversão."
     />
     <Section title="Perfil do escritório" desc="Sua vitrine pública e dados internos." onSubmit={save} loading={loading} saved={saved} error={error}>
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">
@@ -560,8 +560,8 @@ function SchedulerSection({ data, onSaved, banner }) {
     <SectionHero
       icon="📋"
       title="Agendador público"
-      objective="Defina o endereço exclusivo de agendamento, a duração das consultas e a mensagem de boas-vindas."
-      benefit="Clientes agendam sozinhos, sem telefonemas. Compartilhe o link e receba consultas 24 horas — até enquanto você está em atendimento."
+      objective="Defina o endereço de agendamento, a duração de cada consulta e a mensagem de boas-vindas para os clientes."
+      benefit="Clientes agendam pelo link sem precisar ligar. Compartilhe no Instagram, WhatsApp ou email e receba consultas 24 horas."
     />
     <Section title="Configurações do agendador" desc="Configure seu link público de agendamento." onSubmit={save} loading={loading} saved={saved} error={error}>
       {banner && (
@@ -717,8 +717,8 @@ function MeetingsSection({ data, onSaved, banner }) {
       <SectionHero
         icon="🎥"
         title="Reuniões e compromissos"
-        objective="Defina como suas consultas serão realizadas: por videoconferência integrada, link fixo ou presencialmente."
-        benefit="Um link de reunião exclusivo é gerado para cada novo compromisso — sem configuração manual nem troca de mensagens com o cliente."
+        objective="Defina o formato das consultas: videoconferência gerada automaticamente, link fixo ou atendimento presencial."
+        benefit="Cada compromisso ganha um link de reunião exclusivo. Sem precisar combinar com o cliente onde ou como a consulta acontece."
       />
       {banner && (
         <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
@@ -904,8 +904,8 @@ function CalendarSection({ data, onSaved }) {
     <SectionHero
       icon="📅"
       title="Disponibilidade e valores"
-      objective="Configure seu horário de trabalho dia a dia, intervalos de almoço e os valores cobrados por especialidade."
-      benefit="O agendador exibe apenas os horários livres e calcula o valor automaticamente na cobrança — sem trabalho manual."
+      objective="Configure o expediente de cada dia, os intervalos de almoço e os valores cobrados por área de atuação."
+      benefit="O agendador exibe apenas os horários livres e aplica os valores configurados automaticamente a cada nova cobrança gerada."
     />
     <Section title="Configurações da agenda" onSubmit={save} loading={loading} saved={saved} error={error}>
       <InfoBlock>
@@ -1070,8 +1070,8 @@ function FinancialSection({ data, onSaved }) {
       <SectionHero
         icon="💳"
         title="Pagamentos online"
-        objective="Conecte sua conta Asaas para aceitar pagamentos via PIX, boleto e cartão de crédito diretamente no agendamento."
-        benefit="Assim que o cliente paga, o agendamento é confirmado automaticamente e ele recebe um email — zero intervenção manual da sua parte."
+        objective="Conecte sua conta Asaas para que clientes paguem via PIX, boleto ou cartão de crédito no próprio agendamento."
+        benefit="O agendamento é confirmado automaticamente após o pagamento e o cliente recebe um email de confirmação sem nenhuma ação sua."
       />
 
       {!f.asaasConnected && (
@@ -1210,8 +1210,8 @@ function AlertsSection({ data, onSaved }) {
     <SectionHero
       icon="🔔"
       title="Alertas e notificações"
-      objective="Escolha como você quer ser avisado sobre novos agendamentos e cancelamentos."
-      benefit="Saiba imediatamente quando um cliente agenda ou cancela — por email ou WhatsApp, sem precisar abrir o sistema."
+      objective="Escolha como deseja ser avisado sobre novos agendamentos e cancelamentos realizados pelos seus clientes."
+      benefit="Você é notificado por email ou WhatsApp assim que qualquer agendamento ou cancelamento ocorre, sem precisar abrir o sistema."
     />
     <Section title="Alertas de agendamento" desc="Receba avisos dos seus agendamentos." onSubmit={save} loading={loading} saved={saved} error={error}>
       <InfoBlock>
