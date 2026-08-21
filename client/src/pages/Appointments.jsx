@@ -287,14 +287,6 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
 
             return (
               <>
-                {/* Link de reunião — destaque máximo */}
-                {showMeetingBtn && (
-                  <a href={initial.meetingLink} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-500 transition-colors">
-                    🎥 Acessar Reunião Online
-                  </a>
-                )}
-
                 {/* Dados do cliente */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Cliente</p>
@@ -312,8 +304,8 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
                   )}
                 </div>
 
-                {/* Dados do compromisso */}
-                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                {/* Dados do compromisso + status + observações */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Compromisso</p>
                   <p className="text-sm text-gray-700">{initial.specialty}</p>
                   <p className="text-sm font-medium text-navy-900">
@@ -321,7 +313,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
                     {initial.duration ? ` · ${initial.duration} min` : ''}
                   </p>
                   {pmt && pmtStyle && (
-                    <div className="flex items-center gap-2 pt-1 border-t border-gray-200 mt-1">
+                    <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-400">Pagamento:</span>
                       {pmt.amount != null && (
                         <span className="text-xs font-semibold text-navy-900">
@@ -335,24 +327,31 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
                       )}
                     </div>
                   )}
-                </div>
 
-                {/* Status */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select className={inputCls} value={form.status} onChange={upd('status')}>
-                    <option value="PENDING_PAYMENT">Aguardando pagamento</option>
-                    <option value="CONFIRMED">Confirmado</option>
-                    <option value="COMPLETED">Realizado</option>
-                    <option value="CANCELLED">Cancelado</option>
-                  </select>
-                </div>
+                  {/* Botão de reunião — dentro do bloco de compromisso */}
+                  {showMeetingBtn && (
+                    <a href={initial.meetingLink} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm hover:bg-green-500 transition-colors mt-1">
+                      🎥 Acessar Reunião Online
+                    </a>
+                  )}
 
-                {/* Observações do cliente */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Observações do cliente</label>
-                  <textarea rows={2} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
-                    placeholder="Descrição relatada pelo cliente" />
+                  <div className="border-t border-gray-200 pt-3 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
+                      <select className={inputCls} value={form.status} onChange={upd('status')}>
+                        <option value="PENDING_PAYMENT">Aguardando pagamento</option>
+                        <option value="CONFIRMED">Confirmado</option>
+                        <option value="COMPLETED">Realizado</option>
+                        <option value="CANCELLED">Cancelado</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Observações do cliente</label>
+                      <textarea rows={2} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
+                        placeholder="Descrição relatada pelo cliente" />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Anotações do atendimento — área focal */}
