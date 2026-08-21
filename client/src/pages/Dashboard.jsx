@@ -9,11 +9,22 @@ const PERIODS = [
   { value: 'month', label: 'Mês' },
 ]
 
-function MetricBlock({ value, label, sub, accent }) {
+function MetricBlock({ value, label, sub, accent, tooltip }) {
   return (
     <div className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ${accent ? 'border-l-4 border-l-brand-500' : ''}`}>
       <div className="text-4xl font-extrabold text-navy-900 mb-1">{value}</div>
-      <div className="text-sm font-semibold text-gray-700">{label}</div>
+      <div className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+        {label}
+        {tooltip && (
+          <span className="relative inline-block group">
+            <span className="text-gray-300 hover:text-gray-400 cursor-help text-xs select-none">ⓘ</span>
+            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 text-center leading-relaxed font-normal">
+              {tooltip}
+              <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+            </span>
+          </span>
+        )}
+      </div>
       {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
     </div>
   )
@@ -270,9 +281,10 @@ export default function Dashboard() {
             />
             <MetricBlock
               value={`R$ ${(data.received ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-              label="Recebido no período"
+              label="Confirmado no período"
               sub={PERIODS.find(p => p.value === period)?.label}
               accent
+              tooltip="Soma de pagamentos confirmados pelo Asaas. Pode incluir valores ainda em liquidação (PIX D+1, Boleto D+2, Cartão até D+30) — consulte o saldo disponível no módulo Financeiro para saber o que pode ser sacado agora."
             />
             <MetricBlock
               value={`R$ ${data.receivables.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}

@@ -29,10 +29,10 @@ const BULK_STATUS_OPTIONS = [
 
 const fmt = (v) => `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
 
-const ASAAS_FEES_NOTE = 'Taxas Asaas descontadas antes do crédito em conta: PIX 0,99% (mín. R$0,99) · Boleto R$1,99 · Cartão a partir de 3,49%.'
+const SETTLEMENT_NOTE = 'O prazo de liquidação varia por modalidade: PIX D+1, Boleto D+2, Cartão até D+30. Valores confirmados ficam temporariamente como "Confirmadas" no Asaas antes de ficarem disponíveis para saque.'
 
 const CARD_TOOLTIPS = {
-  paid:      `Total bruto confirmado como recebido. ${ASAAS_FEES_NOTE}`,
+  paid:      `Soma bruta de pagamentos confirmados pelo Asaas no nosso sistema. Inclui valores ainda em prazo de liquidação — consulte o saldo disponível acima para saber o que pode ser sacado agora. ${SETTLEMENT_NOTE}`,
   pending:   'Cobranças geradas aguardando pagamento pelo cliente.',
   overdue:   'Cobranças com data de vencimento ultrapassada sem confirmação de pagamento.',
   cancelled: 'Registros cancelados ou estornados.',
@@ -144,20 +144,27 @@ export default function Finance() {
       {balance?.balance != null && (
         <div className="bg-navy-900 rounded-2xl p-6 mb-6 flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-brand-400 text-sm font-medium mb-1">Saldo disponível para saque</p>
+            <p className="text-brand-400 text-sm font-medium mb-1">Saldo disponível para saque agora</p>
             <p className="text-white text-3xl font-extrabold">{fmt(balance.balance)}</p>
             <p className="text-gray-400 text-xs mt-1">
-              Valor líquido disponível na sua conta Asaas após taxas de processamento.
+              Consultado em tempo real na sua conta Asaas — já descontadas as taxas e concluído o prazo de liquidação.
+              Pagamentos recentes podem ainda estar em liquidação e aparecer abaixo como "Confirmado" antes de entrar aqui.
             </p>
           </div>
-          <a
-            href="https://www.asaas.com/transfer"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 px-5 py-2.5 rounded-xl bg-brand-500 text-navy-900 text-sm font-semibold hover:bg-brand-400 transition-colors"
-          >
-            Solicitar saque →
-          </a>
+          {balance.balance > 0 ? (
+            <a
+              href="https://www.asaas.com/transfer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 px-5 py-2.5 rounded-xl bg-brand-500 text-navy-900 text-sm font-semibold hover:bg-brand-400 transition-colors"
+            >
+              Solicitar saque →
+            </a>
+          ) : (
+            <span className="shrink-0 px-5 py-2.5 rounded-xl bg-white/10 text-gray-400 text-sm cursor-default">
+              Nenhum saldo disponível
+            </span>
+          )}
         </div>
       )}
 
@@ -165,7 +172,7 @@ export default function Finance() {
 
       {/* Resumo */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <SummaryCard label="Recebido"  value={summary.paid}      color="border-l-green-500"  tooltip={CARD_TOOLTIPS.paid} />
+        <SummaryCard label="Confirmado" value={summary.paid}      color="border-l-green-500"  tooltip={CARD_TOOLTIPS.paid} />
         <SummaryCard label="A receber" value={summary.pending}   color="border-l-yellow-500" tooltip={CARD_TOOLTIPS.pending} />
         <SummaryCard label="Atrasado"  value={summary.overdue}   color="border-l-red-500"    tooltip={CARD_TOOLTIPS.overdue} />
         <SummaryCard label="Cancelado" value={summary.cancelled} color="border-l-gray-300"   tooltip={CARD_TOOLTIPS.cancelled} />
@@ -174,7 +181,7 @@ export default function Finance() {
       {/* Gráfico */}
       {chartData.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-          <h3 className="font-semibold text-navy-900 mb-4">Recebidos — últimos 6 meses</h3>
+          <h3 className="font-semibold text-navy-900 mb-4">Confirmados — últimos 6 meses</h3>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <defs>
