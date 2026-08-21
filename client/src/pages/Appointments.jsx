@@ -283,7 +283,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
             const email = initial.client?.email || initial.clientEmail
             const waDigits = whatsapp ? whatsapp.replace(/\D/g, '') : ''
             const waLink = waDigits ? `https://wa.me/${waDigits.startsWith('55') ? waDigits : '55' + waDigits}` : null
-            const showMeetingBtn = initial.meetingLink && initial.status === 'CONFIRMED' && pmt?.status === 'PAID'
+            const showMeetingBtn = !!initial.meetingLink
 
             return (
               <>
@@ -346,11 +346,12 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
                         <option value="CANCELLED">Cancelado</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Observações do cliente</label>
-                      <textarea rows={2} className={inputCls + ' resize-none'} value={form.description} onChange={upd('description')}
-                        placeholder="Descrição relatada pelo cliente" />
-                    </div>
+                    {form.description && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Observações do cliente no agendamento</label>
+                        <p className="text-sm text-gray-700 bg-white rounded-lg px-3 py-2 border border-gray-200">{form.description}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
