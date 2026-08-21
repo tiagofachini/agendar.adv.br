@@ -484,12 +484,6 @@ export default function Scheduler() {
           <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-1">
             <span>🕐</span>
             <span>{info.slotDuration ?? 60} min</span>
-            {consultaValor && (
-              <>
-                <span className="text-gray-300">·</span>
-                <span className="font-semibold" style={{ color: brand1 }}>{consultaValor}</span>
-              </>
-            )}
           </div>
 
           <div className="my-5 border-t border-gray-100" />
@@ -543,11 +537,6 @@ export default function Scheduler() {
 
           {info.highlightMessage && (
             <p className="text-brand-400 text-sm mt-2 max-w-xs mx-auto">{info.highlightMessage}</p>
-          )}
-          {consultaValor && (
-            <p className="text-gray-300 text-sm mt-1">
-              Consulta de {info.slotDuration} min — {consultaValor}
-            </p>
           )}
         </div>
 
@@ -612,7 +601,7 @@ export default function Scheduler() {
                     <li className="flex gap-2">
                       <span className="font-bold text-navy-900">4.</span>
                       {showPaymentStep
-                        ? `Finalize o pagamento de ${consultaValor} via Asaas para garantir o horário`
+                        ? 'Finalize o pagamento via Asaas para garantir o horário'
                         : 'Confirme o agendamento (pagamento combinado com o advogado)'}
                     </li>
                     <li className="flex gap-2"><span className="font-bold text-navy-900">5.</span> Receba a confirmação com todos os detalhes</li>
