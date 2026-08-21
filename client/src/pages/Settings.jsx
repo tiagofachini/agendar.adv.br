@@ -5,10 +5,10 @@ import { supabase } from '../lib/supabase'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
 const TABS = [
-  { key: 'google',    label: '🔗 Google' },
   { key: 'profile',   label: '🏢 Perfil' },
   { key: 'scheduler', label: '📋 Agendador' },
   { key: 'calendar',  label: '📅 Agenda' },
+  { key: 'meetings',  label: '🎥 Reuniões' },
   { key: 'financial', label: '💳 Financeiro' },
   { key: 'alerts',    label: '🔔 Alertas' },
 ]
@@ -481,30 +481,18 @@ function hasPhoneNumber(text) {
   return PHONE_RE.test(text)
 }
 
-function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
+function SchedulerSection({ data, onSaved, banner }) {
   const sc = data.scheduler || {}
   const [form, setForm] = useState({
     schedulerSlug: sc.schedulerSlug || '',
     slotDuration: sc.slotDuration || 60,
     highlightMessage: sc.highlightMessage || '',
-    customMeetingUrl: sc.customMeetingUrl || '',
     listedInDirectory: sc.listedInDirectory !== false,
   })
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [phoneStripped, setPhoneStripped] = useState(false)
-  const [gcDisconnecting, setGcDisconnecting] = useState(false)
-
-  const handleDisconnectGoogle = async () => {
-    if (!window.confirm('Desconectar a integração com Google? Novos agendamentos não gerarão links Meet automáticos.')) return
-    setGcDisconnecting(true)
-    try {
-      await api.post('/google-calendar/disconnect')
-      onSaved()
-    } catch { /* noop */ }
-    setGcDisconnecting(false)
-  }
 
   useEffect(() => {
     const sc = data.scheduler || {}
@@ -512,7 +500,6 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
       schedulerSlug: sc.schedulerSlug || '',
       slotDuration: sc.slotDuration || 60,
       highlightMessage: sc.highlightMessage || '',
-      customMeetingUrl: sc.customMeetingUrl || '',
       listedInDirectory: sc.listedInDirectory !== false,
     })
   }, [data])
@@ -612,36 +599,184 @@ function SchedulerSection({ data, onSaved, banner, onGoToGoogle }) {
         </div>
       </div>
 
-      <div className="border border-gray-100 rounded-xl p-4 space-y-3 bg-gray-50/40">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Reunião online</p>
-          {sc.googleCalendarConnected ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full">✓ Google Meet ativo</span>
-              <button type="button" onClick={handleDisconnectGoogle} disabled={gcDisconnecting}
+    </Section>
+  )
+}
+
+const GoogleLogo = () => (
+  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+  </svg>
+)
+
+function MeetingsSection({ data, onSaved, banner }) {
+  const sc = data.scheduler || {}
+  const isConnected = sc.googleCalendarConnected || false
+  const [gcLoading, setGcLoading] = useState(false)
+  const [form, setForm] = useState({
+    meetingType: sc.meetingType || 'google',
+    customMeetingUrl: sc.customMeetingUrl || '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const sc = data.scheduler || {}
+    setForm({ meetingType: sc.meetingType || 'google', customMeetingUrl: sc.customMeetingUrl || '' })
+  }, [data])
+
+  const handleConnect = async () => {
+    setGcLoading(true)
+    try {
+      const { data: res } = await api.post('/google-calendar/auth-url')
+      if (res.url) window.location.href = res.url
+    } catch { setGcLoading(false) }
+  }
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Desconectar a integração com Google? Novos agendamentos não gerarão links Meet automáticos.')) return
+    setGcLoading(true)
+    try { await api.post('/google-calendar/disconnect'); onSaved() } catch {}
+    setGcLoading(false)
+  }
+
+  const save = async (e) => {
+    e.preventDefault(); setLoading(true); setSaved(false); setError('')
+    try {
+      await api.put('/settings/scheduler', form)
+      setSaved(true); onSaved()
+    } catch (err) { setError(errMsg(err)) }
+    setLoading(false)
+  }
+
+  const MEETING_TYPES = [
+    {
+      value: 'google',
+      label: '🎥 Google Meet automático',
+      desc: 'Um link de Google Meet exclusivo é gerado para cada consulta. Requer conta Google conectada acima.',
+      warn: !isConnected ? 'Conta Google não conectada — conecte acima para usar esta opção.' : null,
+    },
+    {
+      value: 'jitsi',
+      label: '🔵 Jitsi Meet automático',
+      desc: 'Link exclusivo gerado por compromisso (meet.jit.si/…). Gratuito, sem conta, funciona incorporado na plataforma.',
+    },
+    {
+      value: 'custom',
+      label: '🔗 Link fixo',
+      desc: 'O mesmo link (Zoom, Teams, ou outro) é usado em todos os compromissos online.',
+    },
+    {
+      value: 'presencial',
+      label: '🏢 Presencial',
+      desc: 'Consultas presenciais no escritório. O endereço configurado no Perfil é exibido ao cliente.',
+    },
+  ]
+
+  return (
+    <div className="space-y-5">
+      {banner && (
+        <div className={`border rounded-xl p-4 flex items-start gap-3 text-sm ${banner.startsWith('✓') ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+          <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5 ${banner.startsWith('✓') ? 'bg-green-500' : 'bg-red-500'}`} />
+          <p className="font-medium">{banner}</p>
+        </div>
+      )}
+
+      {/* Integração Google */}
+      <div className="bg-white rounded-2xl shadow-sm p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <GoogleLogo />
+          <div className="flex-1">
+            <h3 className="font-bold text-navy-900">Integração com Google</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Sincroniza com Google Agenda e gera links Meet automáticos</p>
+          </div>
+          {isConnected ? (
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <span className="text-xs font-medium text-green-700 bg-green-100 px-2.5 py-1 rounded-full">✓ Conectado</span>
+              <button onClick={handleDisconnect} disabled={gcLoading}
                 className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 transition-colors">
-                {gcDisconnecting ? 'Desconectando...' : 'Desconectar'}
+                {gcLoading ? 'Desconectando...' : 'Desconectar'}
               </button>
             </div>
           ) : (
-            <button type="button" onClick={onGoToGoogle}
-              className="text-xs font-medium text-navy-700 hover:underline">
-              Configurar integração Google →
+            <button onClick={handleConnect} disabled={gcLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 flex-shrink-0">
+              {gcLoading ? 'Redirecionando...' : <><GoogleLogo /> Conectar Google</>}
             </button>
           )}
         </div>
-        {!sc.googleCalendarConnected && (
-          <Field label="Link fixo de reunião (Google Meet, Zoom, Teams…)">
-            <input className={inputCls} value={form.customMeetingUrl}
-              onChange={e => setForm({ ...form, customMeetingUrl: e.target.value })}
-              placeholder="https://meet.google.com/xxx-yyyy-zzz" />
-            <p className="text-xs text-gray-400 mt-1.5">
-              Usado quando não há endereço físico configurado. Conecte o Google para gerar links automáticos.
-            </p>
-          </Field>
+        {isConnected && (
+          <div className="space-y-1.5 pt-3 border-t border-gray-100">
+            {['Compromissos sincronizados com Google Agenda', 'Links Google Meet exclusivos por consulta', 'Login disponível via Google'].map(item => (
+              <div key={item} className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="text-green-500 font-bold flex-shrink-0">✓</span>{item}
+              </div>
+            ))}
+          </div>
+        )}
+        {!isConnected && (
+          <p className="text-sm text-gray-500 leading-relaxed">
+            Sem a integração, compromissos não aparecem na Google Agenda e links Meet não são gerados automaticamente. Conecte em menos de um minuto.
+          </p>
         )}
       </div>
-    </Section>
+
+      {/* Tipo de reunião */}
+      <form onSubmit={save} className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <div>
+          <h3 className="font-bold text-navy-900 mb-1">Tipo de reunião padrão</h3>
+          <p className="text-sm text-gray-500">Define como os compromissos serão realizados por padrão.</p>
+        </div>
+        <div className="space-y-3">
+          {MEETING_TYPES.map(opt => (
+            <label key={opt.value}
+              className={`flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${form.meetingType === opt.value ? 'border-navy-900 bg-navy-50' : 'border-gray-200 hover:border-gray-300'}`}>
+              <input type="radio" name="meetingType" value={opt.value}
+                checked={form.meetingType === opt.value}
+                onChange={e => setForm(f => ({ ...f, meetingType: e.target.value }))}
+                className="mt-0.5 flex-shrink-0 accent-navy-900" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-navy-900">{opt.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{opt.desc}</p>
+                {opt.warn && (
+                  <p className="text-xs text-amber-600 mt-1.5 font-medium">⚠ {opt.warn}</p>
+                )}
+              </div>
+            </label>
+          ))}
+        </div>
+
+        {form.meetingType === 'custom' && (
+          <Field label="URL do link fixo">
+            <input className={inputCls} value={form.customMeetingUrl}
+              onChange={e => setForm(f => ({ ...f, customMeetingUrl: e.target.value }))}
+              placeholder="https://zoom.us/j/xxx ou https://meet.google.com/xxx" />
+            <p className="text-xs text-gray-400 mt-1.5">Este link será enviado ao cliente em todos os novos compromissos.</p>
+          </Field>
+        )}
+        {form.meetingType === 'jitsi' && (
+          <InfoBlock>
+            <p className="font-semibold text-navy-900">Como funciona o Jitsi automático</p>
+            <p>A cada novo compromisso, um link exclusivo é gerado no formato <span className="font-mono text-xs bg-white px-1.5 py-0.5 rounded border border-blue-200">meet.jit.si/agendar-seuslug-xxxxx</span>. Sem conta, sem instalação, gratuito — e compatível com o Modo Reunião integrado na plataforma.</p>
+          </InfoBlock>
+        )}
+        {form.meetingType === 'presencial' && (
+          <InfoBlock>
+            <p className="font-semibold text-navy-900">Endereço do escritório</p>
+            <p>O endereço exibido ao cliente será o cadastrado na aba <strong>Perfil</strong>. Certifique-se de que o endereço está completo antes de ativar esta opção.</p>
+          </InfoBlock>
+        )}
+
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+        <div className="flex justify-end pt-2">
+          <SaveBtn loading={loading} saved={saved} />
+        </div>
+      </form>
+    </div>
   )
 }
 
@@ -1024,7 +1159,7 @@ function AlertsSection({ data, onSaved }) {
 }
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState('google')
+  const [activeTab, setActiveTab] = useState('profile')
   const [settingsData, setSettingsData] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [calendarBanner, setCalendarBanner] = useState('')
@@ -1044,11 +1179,11 @@ export default function Settings() {
     window.history.replaceState({}, '', '/settings')
 
     if (calendar === 'success') {
-      setActiveTab('google')
+      setActiveTab('meetings')
       setCalendarBanner('✓ Google Calendar conectado! Novos agendamentos gerarão links Google Meet automaticamente.')
       load()
     } else if (calendar === 'error') {
-      setActiveTab('google')
+      setActiveTab('meetings')
       const reasonMsg = calendarReason ? ` [${calendarReason}${calendarDetail ? ': ' + calendarDetail : ''}]` : ''
       setCalendarBanner(`Erro ao conectar Google Calendar.${reasonMsg} Tente desconectar e reconectar.`)
       load()
@@ -1079,15 +1214,13 @@ export default function Settings() {
 
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
         {TABS.map(({ key, label, pro }) => {
-          const isGoogle = key === 'google'
-          const googleNotConnected = isGoogle && !(settingsData?.scheduler?.googleCalendarConnected)
           return (
             <button key={key} onClick={() => setActiveTab(key)}
               className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative
                 ${activeTab === key ? 'bg-white text-navy-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               {label}
               {pro && <span className="ml-1 text-xs text-amber-500">⭐</span>}
-              {googleNotConnected && (
+              {key === 'meetings' && !(settingsData?.scheduler?.googleCalendarConnected) && (
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-400 rounded-full" />
               )}
             </button>
@@ -1095,12 +1228,12 @@ export default function Settings() {
         })}
       </div>
 
-      {activeTab === 'google'    && <GoogleIntegrationSection data={settingsData} onSaved={load} banner={calendarBanner} />}
-      {activeTab === 'profile'   && <ProfileSection    data={settingsData} onSaved={load} />}
-      {activeTab === 'scheduler' && <SchedulerSection  data={settingsData} onSaved={load} banner={calendarBanner} onGoToGoogle={() => setActiveTab('google')} />}
-      {activeTab === 'calendar'  && <CalendarSection   data={settingsData} onSaved={load} />}
-      {activeTab === 'financial' && <FinancialSection  data={settingsData} onSaved={load} />}
-      {activeTab === 'alerts'    && <AlertsSection     data={settingsData} onSaved={load} />}
+      {activeTab === 'profile'   && <ProfileSection   data={settingsData} onSaved={load} />}
+      {activeTab === 'scheduler' && <SchedulerSection data={settingsData} onSaved={load} banner={calendarBanner} />}
+      {activeTab === 'calendar'  && <CalendarSection  data={settingsData} onSaved={load} />}
+      {activeTab === 'meetings'  && <MeetingsSection  data={settingsData} onSaved={load} banner={calendarBanner} />}
+      {activeTab === 'financial' && <FinancialSection data={settingsData} onSaved={load} />}
+      {activeTab === 'alerts'    && <AlertsSection    data={settingsData} onSaved={load} />}
     </div>
   )
 }

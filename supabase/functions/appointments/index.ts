@@ -87,8 +87,8 @@ async function getGoogleAccessToken(refreshToken: string): Promise<string> {
 
 async function createCalendarEvent(accessToken: string, p: {
   summary: string; description: string; startISO: string; endISO: string
-  location?: string; attendeeEmail?: string
-}): Promise<string> {
+  location?: string; attendeeEmail?: string; requestMeetLink?: boolean
+}): Promise<{ id: string; hangoutLink?: string }> {
   const body: Record<string, unknown> = {
     summary: p.summary,
     description: p.description,
@@ -97,9 +97,18 @@ async function createCalendarEvent(accessToken: string, p: {
   }
   if (p.location)      body.location  = p.location
   if (p.attendeeEmail) body.attendees = [{ email: p.attendeeEmail }]
+  if (p.requestMeetLink) {
+    body.conferenceData = {
+      createRequest: {
+        requestId: crypto.randomUUID().slice(0, 8),
+        conferenceSolutionKey: { type: 'hangoutsMeet' },
+      },
+    }
+  }
 
+  const qs = p.requestMeetLink ? '?sendUpdates=none&conferenceDataVersion=1' : '?sendUpdates=none'
   const res = await fetch(
-    'https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=none',
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events${qs}`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -111,7 +120,7 @@ async function createCalendarEvent(accessToken: string, p: {
     throw new Error(errBody?.error?.message || `Google Calendar HTTP ${res.status}`)
   }
   const event = await res.json()
-  return event.id as string
+  return { id: event.id as string, hangoutLink: event.hangoutLink as string | undefined }
 }
 
 async function deleteCalendarEvent(accessToken: string, eventId: string): Promise<void> {
@@ -168,13 +177,16 @@ Deno.serve(async (req) => {
 
       const { data: s } = await sbAdmin
         .from('LawyerSettings')
-        .select('googleCalendarConnected, googleCalendarRefreshToken, slotDuration, street, number, city, state')
+        .select('googleCalendarConnected, googleCalendarRefreshToken, slotDuration, street, number, city, state, meetingType, customMeetingUrl, schedulerSlug')
         .eq('lawyerId', lawyerId)
         .maybeSingle()
 
+      const mType = s?.meetingType || 'google'
       let calendarSynced = false
       let calendarError: string | undefined
       let calendarEventId: string | undefined
+      let meetingLink: string | undefined = rest.meetingLink
+
       if (s?.googleCalendarConnected && s?.googleCalendarRefreshToken) {
         try {
           const accessToken = await getGoogleAccessToken(s.googleCalendarRefreshToken)
@@ -184,14 +196,20 @@ Deno.serve(async (req) => {
           const location = hasAddress
             ? [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
             : undefined
-          calendarEventId = await createCalendarEvent(accessToken, {
+          const requestMeetLink = mType === 'google'
+          const calResult = await createCalendarEvent(accessToken, {
             summary: `Consulta jurídica: ${rest.specialty} — ${rest.clientName}`,
             description: rest.description || `Consulta com ${rest.clientName}`,
             startISO: dateISO,
             endISO,
             location,
             attendeeEmail: rest.clientEmail,
+            requestMeetLink,
           })
+          calendarEventId = calResult.id
+          if (requestMeetLink && calResult.hangoutLink && !meetingLink) {
+            meetingLink = calResult.hangoutLink
+          }
           calendarSynced = true
         } catch (calErr) {
           calendarError = calErr.message
@@ -199,9 +217,18 @@ Deno.serve(async (req) => {
         }
       }
 
+      if (!meetingLink) {
+        if (mType === 'jitsi') {
+          const slug = s?.schedulerSlug || lawyerId.slice(0, 8)
+          meetingLink = `https://meet.jit.si/agendar-${slug}-${apptId.slice(0, 8)}`
+        } else if (mType === 'custom' && s?.customMeetingUrl) {
+          meetingLink = s.customMeetingUrl
+        }
+      }
+
       const { data, error } = await sb
         .from('Appointment')
-        .insert({ ...rest, id: apptId, lawyerId, source: 'MANUAL', date: dateISO, updatedAt: new Date().toISOString(), googleCalendarEventId: calendarEventId })
+        .insert({ ...rest, id: apptId, lawyerId, source: 'MANUAL', date: dateISO, updatedAt: new Date().toISOString(), googleCalendarEventId: calendarEventId, meetingLink })
         .select()
         .single()
       if (error) throw error
