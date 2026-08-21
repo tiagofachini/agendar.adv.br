@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
-import { useAuth } from '../context/AuthContext'
 
 function maskPhone(raw) {
   const d = raw.replace(/\D/g, '').slice(0, 11)
@@ -240,8 +239,7 @@ function ClientModal({ clientId, onClose, onSaved }) {
 
 // ── Painel lateral de detalhes ────────────────────────────────────────────────
 function ClientDetail({ clientId, onClose, onEdit }) {
-  const { effectivePlan } = useAuth()
-  const isPro = effectivePlan === 'PRO'
+  const isPro = true
   const [client, setClient] = useState(null)
   const [msgForm, setMsgForm] = useState({ channel: 'email', subject: '', body: '' })
   const [sendLoading, setSendLoading] = useState(false)

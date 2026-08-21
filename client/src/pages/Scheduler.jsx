@@ -156,7 +156,9 @@ export default function Scheduler() {
   const [form, setForm] = useState({
     clientName: '', clientEmail: '', clientWhatsapp: '',
     specialty: '', description: '', clientDocument: '',
+    clientCep: '', clientStreet: '', clientNumber: '', clientCity: '', clientState: '',
   })
+  const [cepLoading, setCepLoading] = useState(false)
 
   const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition)
 
@@ -285,6 +287,25 @@ export default function Scheduler() {
     }
   }
 
+  const lookupCep = async () => {
+    const digits = form.clientCep.replace(/\D/g, '')
+    if (digits.length !== 8) return
+    setCepLoading(true)
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+      const d = await r.json()
+      if (!d.erro) {
+        setForm(f => ({
+          ...f,
+          clientStreet: d.logradouro || f.clientStreet,
+          clientCity: d.localidade || f.clientCity,
+          clientState: d.uf || f.clientState,
+        }))
+      }
+    } catch { /* noop */ }
+    setCepLoading(false)
+  }
+
   const handleBook = async () => {
     setBooking(true); setError('')
     try {
@@ -294,6 +315,11 @@ export default function Scheduler() {
         clientEmail: form.clientEmail,
         clientWhatsapp: form.clientWhatsapp,
         clientDocument: form.clientDocument || undefined,
+        clientCep: form.clientCep || undefined,
+        clientStreet: form.clientStreet || undefined,
+        clientNumber: form.clientNumber || undefined,
+        clientCity: form.clientCity || undefined,
+        clientState: form.clientState || undefined,
         specialty,
         description: form.description,
         selectedDate: format(selectedDate, 'yyyy-MM-dd'),
@@ -811,6 +837,57 @@ export default function Scheduler() {
                     />
                     <p className="text-xs text-gray-400 mt-1">Necessário para processar o pagamento via Asaas.</p>
                   </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={form.clientCep}
+                        onChange={e => {
+                          const d = e.target.value.replace(/\D/g, '').slice(0, 8)
+                          const masked = d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d
+                          setForm(f => ({ ...f, clientCep: masked }))
+                        }}
+                        onBlur={lookupCep}
+                        className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                        placeholder="00000-000"
+                        inputMode="numeric"
+                        maxLength={9}
+                      />
+                      <button type="button" onClick={lookupCep} disabled={cepLoading}
+                        className="px-4 py-3 rounded-xl bg-gray-100 border border-gray-300 text-sm font-medium hover:bg-gray-200 disabled:opacity-50">
+                        {cepLoading ? '...' : 'Buscar'}
+                      </button>
+                    </div>
+                  </div>
+                  {form.clientCity && (
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Logradouro</label>
+                        <input
+                          value={form.clientStreet}
+                          onChange={e => setForm(f => ({ ...f, clientStreet: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                          placeholder="Rua, Av..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                        <input
+                          value={form.clientNumber}
+                          onChange={e => setForm(f => ({ ...f, clientNumber: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-navy-700"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Cidade/UF</label>
+                        <input
+                          value={`${form.clientCity}${form.clientState ? `/${form.clientState}` : ''}`}
+                          readOnly
+                          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 text-gray-600"
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
                     <p className="text-blue-800 text-sm font-medium">
                       💳 Ao confirmar, você será redirecionado para a página de pagamento seguro via Asaas.

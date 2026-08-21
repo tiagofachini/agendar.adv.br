@@ -459,7 +459,9 @@ Deno.serve(async (req) => {
 
     if (req.method === 'POST' && action === 'book') {
       const body = await req.json()
-      const { clientName, clientEmail, clientWhatsapp, clientDocument, specialty, description, selectedDate, selectedSlot } = body
+      const { clientName, clientEmail, clientWhatsapp, clientDocument,
+              clientCep, clientStreet, clientNumber, clientCity, clientState,
+              specialty, description, selectedDate, selectedSlot } = body
 
       if (!clientName || !clientEmail || !specialty || !selectedDate || !selectedSlot) {
         return Response.json({ error: 'Campos obrigatórios ausentes' }, { status: 400, headers: cors })
@@ -482,11 +484,21 @@ Deno.serve(async (req) => {
         .eq('email', clientEmail)
         .maybeSingle()
 
+      const addressPatch = {
+        ...(clientCep    ? { cep:    clientCep }    : {}),
+        ...(clientStreet ? { street: clientStreet } : {}),
+        ...(clientNumber ? { number: clientNumber } : {}),
+        ...(clientCity   ? { city:   clientCity }   : {}),
+        ...(clientState  ? { state:  clientState }  : {}),
+      }
+
       let clientId: string
       if (existing) {
         clientId = existing.id
-        if (clientDocument && !existing.cpfCnpj) {
-          await sb.from('Client').update({ cpfCnpj: clientDocument }).eq('id', clientId).catch(() => {})
+        const patch: Record<string, unknown> = { ...addressPatch }
+        if (clientDocument && !existing.cpfCnpj) patch.cpfCnpj = clientDocument
+        if (Object.keys(patch).length > 0) {
+          await sb.from('Client').update(patch).eq('id', clientId).catch(() => {})
         }
       } else {
         const { data: nc, error: ncErr } = await sb
@@ -498,6 +510,7 @@ Deno.serve(async (req) => {
             email: clientEmail,
             whatsapp: clientWhatsapp,
             ...(clientDocument ? { cpfCnpj: clientDocument } : {}),
+            ...addressPatch,
             updatedAt: new Date().toISOString(),
           })
           .select('id')
@@ -556,6 +569,11 @@ Deno.serve(async (req) => {
             email: clientEmail,
             ...(cpfCnpj ? { cpfCnpj } : {}),
             ...(clientWhatsapp ? { mobilePhone: clientWhatsapp.replace(/\D/g, '') } : {}),
+            ...(clientCep    ? { postalCode: clientCep.replace(/\D/g, '') } : {}),
+            ...(clientStreet ? { address: clientStreet } : {}),
+            ...(clientNumber ? { addressNumber: clientNumber } : {}),
+            ...(clientCity   ? { city: clientCity } : {}),
+            ...(clientState  ? { state: clientState } : {}),
           })
           asaasCustomerId = newCust.id
         }

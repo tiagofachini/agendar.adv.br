@@ -90,7 +90,7 @@ function Countdown({ appointment }) {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Dados do cliente */}
           <div>
             <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Dados do cliente</div>
@@ -161,7 +161,7 @@ function Countdown({ appointment }) {
         {/* Actions */}
         <div className="flex gap-3 mt-5">
           <button
-            onClick={() => navigate('/appointments')}
+            onClick={() => navigate('/appointments', { state: { openAppointment: appointment } })}
             className="flex-1 py-2.5 rounded-xl border border-white/20 text-white/80 text-sm font-medium hover:bg-white/10 transition-colors">
             Ver Detalhes
           </button>

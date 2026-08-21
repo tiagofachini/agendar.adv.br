@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   format, addWeeks, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval,
   isSameDay, isToday, addMonths,
@@ -6,7 +7,6 @@ import {
 import { ptBR } from 'date-fns/locale'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
-import { useAuth } from '../context/AuthContext'
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 
@@ -471,7 +471,8 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, onConf
 
 // ── Página principal ──────────────────────────────────────────────────────────────────
 export default function Appointments() {
-  const { effectivePlan } = useAuth()
+  const location = useLocation()
+  const pendingOpenRef = useRef(location.state?.openAppointment || null)
   const [view, setView] = useState('week')
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
   const [appointments, setAppointments] = useState([])
@@ -495,6 +496,13 @@ export default function Appointments() {
   }, [weekStart, view])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (pendingOpenRef.current) {
+      setModal({ mode: 'edit', appointment: pendingOpenRef.current })
+      pendingOpenRef.current = null
+    }
+  }, [])
 
   const filtered = statusFilter
     ? appointments.filter(a => a.status === statusFilter)
@@ -679,8 +687,8 @@ export default function Appointments() {
           onClose={() => setModal(null)}
           onSaved={saved}
           onCancelled={cancelled}
-          canCancel={effectivePlan === 'PRO'}
-          isPro={effectivePlan === 'PRO'}
+          canCancel={true}
+          isPro={true}
         />
       )}
     </div>
