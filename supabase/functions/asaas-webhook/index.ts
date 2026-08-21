@@ -1,11 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
 const ASAAS_BASE = 'https://www.asaas.com/api/v3'
 const RESEND_URL = 'https://api.resend.com/emails'
 const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
@@ -50,25 +44,46 @@ async function sendEmail(key: string, to: string, subject: string, html: string)
   })
 }
 
+// ALWAYS return 200 to Asaas — non-2xx causes retries and pauses the webhook queue.
+// Process errors are logged internally; the queue is never paused by our side.
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
-  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: cors })
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      },
+    })
+  }
 
+  // Always respond 200 — even for non-POST or parse errors
+  if (req.method !== 'POST') return new Response('ok', { status: 200 })
+
+  let body: { event: string; payment?: Record<string, unknown> }
   try {
-    const body = await req.json()
-    const { event, payment } = body
+    body = await req.json()
+  } catch {
+    return new Response('ok', { status: 200 })
+  }
 
-    if (!['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'].includes(event)) {
-      return new Response('ok', { status: 200, headers: cors })
-    }
+  const { event, payment } = body
 
-    const appointmentId = payment?.externalReference
-    const asaasId = payment?.id
+  // Ignore events we don't handle
+  if (!['PAYMENT_RECEIVED', 'PAYMENT_CONFIRMED'].includes(event)) {
+    return new Response('ok', { status: 200 })
+  }
 
-    if (!appointmentId || !asaasId) {
-      return new Response('missing fields', { status: 400, headers: cors })
-    }
+  const appointmentId = payment?.externalReference as string | undefined
+  const asaasId = payment?.id as string | undefined
 
+  // No reference to match — not our payment, ignore
+  if (!appointmentId || !asaasId) {
+    return new Response('ok', { status: 200 })
+  }
+
+  // Process asynchronously; any internal error must NOT propagate as non-2xx
+  try {
     const sb = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -80,8 +95,9 @@ Deno.serve(async (req) => {
       .eq('id', appointmentId)
       .maybeSingle()
 
+    // Already confirmed or not found — idempotent, nothing to do
     if (!appt || appt.status === 'CONFIRMED') {
-      return new Response('ok', { status: 200, headers: cors })
+      return new Response('ok', { status: 200 })
     }
 
     const { data: settings } = await sb
@@ -90,13 +106,22 @@ Deno.serve(async (req) => {
       .eq('lawyerId', appt.lawyerId)
       .maybeSingle()
 
+    // Verify payment status with Asaas API when key is available.
+    // If verification fails (network error, rate limit), trust the webhook event and proceed.
     if (settings?.asaasApiKey) {
-      const res = await fetch(`${ASAAS_BASE}/payments/${asaasId}`, {
-        headers: { access_token: settings.asaasApiKey },
-      })
-      const paymentData = await res.json()
-      if (!['RECEIVED', 'CONFIRMED'].includes(paymentData.status)) {
-        return new Response('payment not confirmed', { status: 400, headers: cors })
+      try {
+        const res = await fetch(`${ASAAS_BASE}/payments/${asaasId}`, {
+          headers: { access_token: settings.asaasApiKey },
+        })
+        if (res.ok) {
+          const paymentData = await res.json()
+          if (!['RECEIVED', 'CONFIRMED'].includes(paymentData.status)) {
+            // Asaas will fire another event when the payment is actually confirmed
+            return new Response('ok', { status: 200 })
+          }
+        }
+      } catch {
+        // Verification request failed — proceed based on the webhook event itself
       }
     }
 
@@ -143,11 +168,14 @@ Deno.serve(async (req) => {
             amountStr,
           })
         )
-      } catch (_) {}
+      } catch (_) {
+        // Email failure must not prevent 200 response
+      }
     }
-
-    return new Response('ok', { status: 200, headers: cors })
   } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 500, headers: cors })
+    // Log the error but NEVER return non-2xx — that would pause the Asaas queue
+    console.error('asaas-webhook processing error:', (err as Error).message)
   }
+
+  return new Response('ok', { status: 200 })
 })
