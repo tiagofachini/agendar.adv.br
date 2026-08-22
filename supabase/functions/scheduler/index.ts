@@ -7,7 +7,7 @@ const cors = {
 }
 
 const RESEND_URL = 'https://api.resend.com/emails'
-const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
+const FROM_EMAIL = 'Agendar.ADV <notificacoes@agendar.adv.br>'
 const ASAAS_BASE = 'https://www.asaas.com/api/v3'
 
 // Returns UTC offset in ms for the given IANA timezone at a reference date.
@@ -64,8 +64,8 @@ function clientEmailHtml(p: {
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
   <div style="background:#0a2070;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
     <div style="display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
-      <img src="https://agendar.adv.br/logo.png" alt="AgendarAdv" style="height:36px;width:36px;object-fit:contain;vertical-align:middle" />
-      <span style="color:white;font-size:22px;font-weight:700;letter-spacing:-0.5px;vertical-align:middle">Agendar<span style="color:#48b828">Adv</span></span>
+      <img src="https://agendar.adv.br/logo.png" alt="Agendar.ADV" style="height:36px;width:36px;object-fit:contain;vertical-align:middle" />
+      <span style="color:white;font-size:22px;font-weight:700;letter-spacing:-0.5px;vertical-align:middle">Agendar.<span style="color:#48b828">ADV</span></span>
     </div>
     <p style="color:#a0aec0;margin:0;font-size:14px">Agendamento recebido</p>
   </div>
@@ -80,7 +80,7 @@ function clientEmailHtml(p: {
     </table>
   </div>
   ${statusBlock}
-  <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv. Não responda este email.</p>
+  <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo Agendar.ADV. Não responda este email.</p>
 </body></html>`
 }
 
@@ -104,8 +104,8 @@ function lawyerEmailHtml(p: {
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
   <div style="background:#0a2070;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
     <div style="display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
-      <img src="https://agendar.adv.br/logo.png" alt="AgendarAdv" style="height:36px;width:36px;object-fit:contain;vertical-align:middle" />
-      <span style="color:white;font-size:22px;font-weight:700;letter-spacing:-0.5px;vertical-align:middle">Agendar<span style="color:#48b828">Adv</span></span>
+      <img src="https://agendar.adv.br/logo.png" alt="Agendar.ADV" style="height:36px;width:36px;object-fit:contain;vertical-align:middle" />
+      <span style="color:white;font-size:22px;font-weight:700;letter-spacing:-0.5px;vertical-align:middle">Agendar.<span style="color:#48b828">ADV</span></span>
     </div>
     <p style="color:#a0aec0;margin:0;font-size:14px">Novo agendamento recebido</p>
   </div>
@@ -126,7 +126,7 @@ function lawyerEmailHtml(p: {
     </div>` : ''}
     ${pixAlert}
   </div>
-  <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv.</p>
+  <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo Agendar.ADV.</p>
 </body></html>`
 }
 
