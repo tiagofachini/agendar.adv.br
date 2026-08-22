@@ -276,9 +276,9 @@ export default function LandingPage() {
               {magicLinkSent ? (
                 <div className="text-center py-4">
                   <div className="text-5xl mb-4">📬</div>
-                  <h3 className="font-bold text-navy-900 text-lg mb-2">Verifique seu email</h3>
+                  <h3 className="font-bold text-navy-900 text-lg mb-2">Você não precisa mais de senha.</h3>
                   <p className="text-gray-600 text-sm leading-relaxed mb-6">
-                    Enviamos um link de acesso para <strong>{form.email}</strong>. Clique nele para entrar — sem precisar de senha.
+                    Enviamos um link de acesso para <strong>{form.email}</strong>. Basta clicar no link deste email para entrar no AgendarAdv.
                   </p>
                   <button onClick={() => setMagicLinkSent(false)} className="text-navy-700 text-sm font-medium hover:underline">
                     Usar outro email
