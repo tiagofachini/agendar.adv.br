@@ -8,6 +8,12 @@ import { ptBR } from 'date-fns/locale'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
+// Converts a UTC ISO string to a Date whose local getters return BRT (America/Sao_Paulo = UTC-3)
+function brt(iso) {
+  const d = new Date(iso)
+  return new Date(d.getTime() + (d.getTimezoneOffset() - 180) * 60_000)
+}
+
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
 
 const PAYMENT_STATUS_STYLE = {
@@ -213,8 +219,8 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
     specialty: initial?.specialty || '',
     description: initial?.description || '',
     attendanceNotes: initial?.attendanceNotes || '',
-    date: initial?.date ? format(new Date(initial.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-    time: initial?.date ? format(new Date(initial.date), 'HH:mm') : '09:00',
+    date: initial?.date ? format(brt(initial.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+    time: initial?.date ? format(brt(initial.date), 'HH:mm') : '09:00',
     duration: initial?.duration || 60,
     status: initial?.status || 'PENDING_PAYMENT',
   })
@@ -316,7 +322,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
         <div className="w-96 bg-white flex flex-col overflow-hidden flex-shrink-0">
           <div className="bg-navy-900 text-white px-4 py-3 flex-shrink-0">
             <p className="font-bold text-sm">{initial.clientName}</p>
-            <p className="text-gray-400 text-xs">{initial.specialty} · {format(new Date(initial.date), "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
+            <p className="text-gray-400 text-xs">{initial.specialty} · {format(brt(initial.date), "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
             <div className="flex gap-3 mt-1.5 text-xs">
               {(initial.client?.email || initial.clientEmail) && (
                 <a href={`mailto:${initial.client?.email || initial.clientEmail}`} className="text-gray-300 hover:text-white truncate">
@@ -436,7 +442,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Compromisso</p>
                   <p className="text-sm text-gray-700">{initial.specialty}</p>
                   <p className="text-sm font-medium text-navy-900">
-                    {format(new Date(initial.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    {format(brt(initial.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     {initial.duration ? ` · ${initial.duration} min` : ''}
                   </p>
                   {pmt && pmtStyle && (
@@ -570,7 +576,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
           <div key={hour} className="grid border-b border-gray-50" style={{ gridTemplateColumns: '60px repeat(7, 1fr)', minHeight: '64px' }}>
             <div className="text-xs text-gray-400 text-right pr-3 pt-1 font-medium">{hour}:00</div>
             {days.map((d, di) => {
-              const appts = byDay[di].filter(a => new Date(a.date).getHours() === hour)
+              const appts = byDay[di].filter(a => brt(a.date).getHours() === hour)
               return (
                 <div key={di}
                   className={`border-l border-gray-100 p-1 relative cursor-pointer hover:bg-gray-50 transition-colors ${isToday(d) ? 'bg-navy-50/50' : ''}`}
@@ -581,7 +587,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
                       <div key={a.id} onClick={(e) => { e.stopPropagation(); onAppointmentClick(a) }}
                         className={`${s.bg} ${s.text} text-xs rounded-lg px-1.5 py-1 mb-1 cursor-pointer hover:opacity-80 transition-opacity truncate`}
                         title={a.attendanceNotes ? '📝 Com anotações' : ''}>
-                        <span className="font-semibold">{format(new Date(a.date), 'HH:mm')}</span> {a.clientName}
+                        <span className="font-semibold">{format(brt(a.date), 'HH:mm')}</span> {a.clientName}
                         {a.attendanceNotes && <span className="ml-1 opacity-70">·</span>}
                       </div>
                     )
@@ -619,14 +625,14 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, onConf
               onClick={e => e.stopPropagation()}
               className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
             <div className="text-center flex-shrink-0 w-12">
-              <div className="text-xs text-gray-400 font-medium">{format(new Date(a.date), 'EEE', { locale: ptBR })}</div>
-              <div className="text-xl font-bold text-navy-900">{format(new Date(a.date), 'd')}</div>
-              <div className="text-xs text-gray-400">{format(new Date(a.date), 'MMM', { locale: ptBR })}</div>
+              <div className="text-xs text-gray-400 font-medium">{format(brt(a.date), 'EEE', { locale: ptBR })}</div>
+              <div className="text-xl font-bold text-navy-900">{format(brt(a.date), 'd')}</div>
+              <div className="text-xs text-gray-400">{format(brt(a.date), 'MMM', { locale: ptBR })}</div>
             </div>
             <div className={`w-1 h-12 rounded-full flex-shrink-0 ${s.bg}`} />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-navy-900">{a.clientName}</p>
-              <p className="text-sm text-gray-500">{a.specialty} · {format(new Date(a.date), 'HH:mm')} ({a.duration}min)
+              <p className="text-sm text-gray-500">{a.specialty} · {format(brt(a.date), 'HH:mm')} ({a.duration}min)
                 {a.attendanceNotes && <span className="ml-2 text-xs text-gray-400">· 📝</span>}
               </p>
             </div>
