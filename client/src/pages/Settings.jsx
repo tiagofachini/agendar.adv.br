@@ -186,6 +186,7 @@ function ProfileSection({ data, onSaved }) {
     cep: o.cep || '', street: o.street || '', number: o.number || '',
     complement: o.complement || '', neighborhood: o.neighborhood || '',
     city: o.city || '', state: o.state || '',
+    timezone: o.timezone || 'America/Sao_Paulo',
     specialties: o.specialties || [],
   })
   const [loading, setLoading] = useState(false)
@@ -203,6 +204,7 @@ function ProfileSection({ data, onSaved }) {
       cep: o.cep || '', street: o.street || '', number: o.number || '',
       complement: o.complement || '', neighborhood: o.neighborhood || '',
       city: o.city || '', state: o.state || '',
+      timezone: o.timezone || 'America/Sao_Paulo',
       specialties: o.specialties || [],
     })
   }, [data])
@@ -234,6 +236,7 @@ function ProfileSection({ data, onSaved }) {
           logoUrl: form.logoUrl, brandColor1: form.brandColor1, brandColor2: form.brandColor2,
           cep: form.cep, street: form.street, number: form.number, complement: form.complement,
           neighborhood: form.neighborhood, city: form.city, state: form.state,
+          timezone: form.timezone,
           specialties: form.specialties,
         }),
       ])
@@ -304,6 +307,14 @@ function ProfileSection({ data, onSaved }) {
           </Field>
         </div>
         <p className="text-xs text-gray-400">O endereço é exibido no agendador apenas como local da consulta presencial — nunca como forma de contato direto.</p>
+        <Field label="Fuso horário">
+          <select className={inputCls} value={form.timezone} onChange={e => setForm({ ...form, timezone: e.target.value })}>
+            <option value="America/Sao_Paulo">Horário de Brasília (UTC−3) — SP, RJ, MG, PR, RS, SC, GO, DF e maioria do Brasil</option>
+            <option value="America/Manaus">Horário do Amazonas (UTC−4) — AM, RO, RR, MT, MS</option>
+            <option value="America/Rio_Branco">Horário do Acre (UTC−5) — AC</option>
+            <option value="America/Noronha">Horário de Noronha (UTC−2) — Fernando de Noronha</option>
+          </select>
+        </Field>
       </div>
 
       <div className="border border-gray-100 rounded-xl p-4 space-y-4 bg-gray-50/40">

@@ -10,6 +10,28 @@ const RESEND_URL = 'https://api.resend.com/emails'
 const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
 const ASAAS_BASE = 'https://www.asaas.com/api/v3'
 
+// Returns UTC offset in ms for the given IANA timezone at a reference date.
+// Positive value means the TZ is behind UTC (e.g. America/Sao_Paulo UTC-3 → +10_800_000).
+function tzOffsetMs(tz: string, ref: Date): number {
+  const tzMs  = new Date(ref.toLocaleString('en-US', { timeZone: tz })).getTime()
+  const utcMs = new Date(ref.toLocaleString('en-US', { timeZone: 'UTC' })).getTime()
+  return utcMs - tzMs
+}
+
+// Returns the UTC timestamp (ms) of midnight in the given timezone for the given date string.
+function tzMidnightMs(dateStr: string, tz: string): number {
+  const ref = new Date(`${dateStr}T12:00:00Z`) // use noon to avoid DST edge cases
+  return new Date(`${dateStr}T00:00:00Z`).getTime() + tzOffsetMs(tz, ref)
+}
+
+// Returns the day-of-week (0=Sun…6=Sat) in the given timezone for a given UTC ms timestamp.
+function tzDayOfWeek(utcMs: number, tz: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' })
+    .formatToParts(new Date(utcMs))
+  const name = parts.find(p => p.type === 'weekday')?.value ?? ''
+  return ({ Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 } as Record<string, number>)[name] ?? 0
+}
+
 async function asaasReq(apiKey: string, method: string, path: string, body?: object) {
   const res = await fetch(`${ASAAS_BASE}${path}`, {
     method,
@@ -347,12 +369,10 @@ Deno.serve(async (req) => {
       const date = url.searchParams.get('date')
       if (!date) return Response.json({ error: 'date required' }, { status: 400, headers: cors })
 
-      // Âncora BRT: meia-noite do dia em ms UTC. Todos os offsets derivam por aritmética pura.
-      const dayStartMs = new Date(`${date}T00:00:00-03:00`).getTime()
+      const tz = s.timezone || 'America/Sao_Paulo'
+      const dayStartMs = tzMidnightMs(date, tz)
       const dayEndMs   = dayStartMs + 86_400_000
-
-      // Dia da semana em BRT (0=Dom … 6=Sáb) — usa meio-dia para evitar ambiguidade de DST
-      const dayOfWeek = new Date(`${date}T12:00:00-03:00`).getDay()
+      const dayOfWeek  = tzDayOfWeek(dayStartMs + 12 * 3_600_000, tz)
 
       // Determina janela de trabalho para este dia específico
       type DayCfg = { day: number; active: boolean; start: string; end: string; lunchStart?: string; lunchEnd?: string }
@@ -525,7 +545,10 @@ Deno.serve(async (req) => {
         clientId = nc.id
       }
 
-      const apptDate = new Date(`${selectedDate}T${selectedSlot}:00-03:00`).toISOString()
+      const tz = s.timezone || 'America/Sao_Paulo'
+      const slotDayStart = tzMidnightMs(selectedDate, tz)
+      const [slotH, slotM] = selectedSlot.split(':').map(Number)
+      const apptDate = new Date(slotDayStart + (slotH * 60 + slotM) * 60_000).toISOString()
       const apptId = crypto.randomUUID()
       const hasAddress = !!(s.street && s.city)
 
@@ -631,7 +654,7 @@ Deno.serve(async (req) => {
           status: 'PENDING',
           asaasId: asaasPaymentId,
           asaasUrl: asaasPaymentUrl,
-          dueDate: new Date(`${selectedDate}T23:59:59-03:00`).toISOString(),
+          dueDate: new Date(slotDayStart + 86_400_000 - 1000).toISOString(),
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })
@@ -642,10 +665,10 @@ Deno.serve(async (req) => {
         try {
           const apptDateObj = new Date(apptDate)
           const dateStr = apptDateObj.toLocaleDateString('pt-BR', {
-            timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+            timeZone: tz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
           })
           const timeStr = apptDateObj.toLocaleTimeString('pt-BR', {
-            timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit',
+            timeZone: tz, hour: '2-digit', minute: '2-digit',
           })
           const address = [s.street, s.number, s.city, s.state].filter(Boolean).join(', ')
           const isPending = apptStatus === 'PENDING_PAYMENT'

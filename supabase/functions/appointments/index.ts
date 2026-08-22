@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
 
       if (appt) {
         const [sRes, lawyerRes] = await Promise.all([
-          sbAdmin.from('LawyerSettings').select('cancellationByEmail, cancellationByWhatsapp, googleCalendarConnected, googleCalendarRefreshToken').eq('lawyerId', lawyerId).maybeSingle(),
+          sbAdmin.from('LawyerSettings').select('cancellationByEmail, cancellationByWhatsapp, googleCalendarConnected, googleCalendarRefreshToken, timezone').eq('lawyerId', lawyerId).maybeSingle(),
           sbAdmin.from('Lawyer').select('email, whatsapp').eq('id', lawyerId).maybeSingle(),
         ])
         const s = sRes.data
@@ -318,12 +318,13 @@ Deno.serve(async (req) => {
         }
 
         if (s && lawyer) {
+          const apptTz = s.timezone || 'America/Sao_Paulo'
           const apptDate = new Date(appt.date)
           const dateStr = apptDate.toLocaleDateString('pt-BR', {
-            timeZone: 'America/Sao_Paulo', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+            timeZone: apptTz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
           })
           const timeStr = apptDate.toLocaleTimeString('pt-BR', {
-            timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit',
+            timeZone: apptTz, hour: '2-digit', minute: '2-digit',
           })
           try {
             const RESEND_KEY = Deno.env.get('RESEND_API_KEY_AGENDAR')

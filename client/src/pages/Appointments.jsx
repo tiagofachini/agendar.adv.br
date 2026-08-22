@@ -8,10 +8,21 @@ import { ptBR } from 'date-fns/locale'
 import api from '../lib/api'
 import { LEGAL_SPECIALTIES } from '../lib/specialties'
 
-// Converts a UTC ISO string to a Date whose local getters return BRT (America/Sao_Paulo = UTC-3)
-function brt(iso) {
+// Returns a Date whose local getters yield the time in the given IANA timezone.
+// Works regardless of the browser's own timezone setting.
+function toTZ(iso, tz) {
   const d = new Date(iso)
-  return new Date(d.getTime() + (d.getTimezoneOffset() - 180) * 60_000)
+  const tzMs = new Date(d.toLocaleString('en-US', { timeZone: tz })).getTime()
+  const localMs = new Date(d.toLocaleString('en-US')).getTime()
+  return new Date(d.getTime() + (tzMs - localMs))
+}
+
+// Converts a local date/time string pair to a UTC ISO string using the given IANA timezone.
+function toUTCIso(dateStr, timeStr, tz) {
+  const roughUTC = new Date(`${dateStr}T${timeStr}:00Z`)
+  const tzMs = new Date(roughUTC.toLocaleString('en-US', { timeZone: tz })).getTime()
+  const localMs = new Date(roughUTC.toLocaleString('en-US')).getTime()
+  return new Date(roughUTC.getTime() - (tzMs - localMs)).toISOString()
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7)
@@ -210,7 +221,7 @@ function isEmbeddable(url) {
 }
 
 // ── Drawer de compromisso ────────────────────────────────────────────────
-function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, isPro }) {
+function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, isPro, tz }) {
   const isNew = !initial?.id
   const [form, setForm] = useState({
     clientName: initial?.clientName || '',
@@ -219,8 +230,8 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
     specialty: initial?.specialty || '',
     description: initial?.description || '',
     attendanceNotes: initial?.attendanceNotes || '',
-    date: initial?.date ? format(brt(initial.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-    time: initial?.date ? format(brt(initial.date), 'HH:mm') : '09:00',
+    date: initial?.date ? format(toTZ(initial.date, tz), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+    time: initial?.date ? format(toTZ(initial.date, tz), 'HH:mm') : '09:00',
     duration: initial?.duration || 60,
     status: initial?.status || 'PENDING_PAYMENT',
   })
@@ -233,7 +244,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
     try {
       if (isNew) {
         const { date, time, ...formRest } = form
-        const { data } = await api.post('/appointments', { ...formRest, date: `${date}T${time}:00-03:00` })
+        const { data } = await api.post('/appointments', { ...formRest, date: toUTCIso(date, time, tz) })
         onSaved(data)
       } else {
         await api.put(`/appointments/${initial.id}`, {
@@ -322,7 +333,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
         <div className="w-96 bg-white flex flex-col overflow-hidden flex-shrink-0">
           <div className="bg-navy-900 text-white px-4 py-3 flex-shrink-0">
             <p className="font-bold text-sm">{initial.clientName}</p>
-            <p className="text-gray-400 text-xs">{initial.specialty} · {format(brt(initial.date), "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
+            <p className="text-gray-400 text-xs">{initial.specialty} · {format(toTZ(initial.date, tz), "dd/MM 'às' HH:mm", { locale: ptBR })}</p>
             <div className="flex gap-3 mt-1.5 text-xs">
               {(initial.client?.email || initial.clientEmail) && (
                 <a href={`mailto:${initial.client?.email || initial.clientEmail}`} className="text-gray-300 hover:text-white truncate">
@@ -442,7 +453,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Compromisso</p>
                   <p className="text-sm text-gray-700">{initial.specialty}</p>
                   <p className="text-sm font-medium text-navy-900">
-                    {format(brt(initial.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    {format(toTZ(initial.date, tz), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                     {initial.duration ? ` · ${initial.duration} min` : ''}
                   </p>
                   {pmt && pmtStyle && (
@@ -553,7 +564,7 @@ function AppointmentModal({ initial, onClose, onSaved, onCancelled, canCancel, i
 }
 
 // ── View Semanal ───────────────────────────────────────────────────────────────
-function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) {
+function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick, tz }) {
   const days = eachDayOfInterval({ start: weekStart, end: endOfWeek(weekStart, { weekStartsOn: 1 }) })
   const byDay = days.map(d => appointments.filter(a => isSameDay(new Date(a.date), d)))
 
@@ -576,7 +587,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
           <div key={hour} className="grid border-b border-gray-50" style={{ gridTemplateColumns: '60px repeat(7, 1fr)', minHeight: '64px' }}>
             <div className="text-xs text-gray-400 text-right pr-3 pt-1 font-medium">{hour}:00</div>
             {days.map((d, di) => {
-              const appts = byDay[di].filter(a => brt(a.date).getHours() === hour)
+              const appts = byDay[di].filter(a => toTZ(a.date, tz).getHours() === hour)
               return (
                 <div key={di}
                   className={`border-l border-gray-100 p-1 relative cursor-pointer hover:bg-gray-50 transition-colors ${isToday(d) ? 'bg-navy-50/50' : ''}`}
@@ -587,7 +598,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
                       <div key={a.id} onClick={(e) => { e.stopPropagation(); onAppointmentClick(a) }}
                         className={`${s.bg} ${s.text} text-xs rounded-lg px-1.5 py-1 mb-1 cursor-pointer hover:opacity-80 transition-opacity truncate`}
                         title={a.attendanceNotes ? '📝 Com anotações' : ''}>
-                        <span className="font-semibold">{format(brt(a.date), 'HH:mm')}</span> {a.clientName}
+                        <span className="font-semibold">{format(toTZ(a.date, tz), 'HH:mm')}</span> {a.clientName}
                         {a.attendanceNotes && <span className="ml-1 opacity-70">·</span>}
                       </div>
                     )
@@ -603,7 +614,7 @@ function WeekView({ weekStart, appointments, onSlotClick, onAppointmentClick }) 
 }
 
 // ── View Lista ────────────────────────────────────────────────────────────────────
-function ListView({ appointments, onAppointmentClick, selected, onToggle, onConfirmPix }) {
+function ListView({ appointments, onAppointmentClick, selected, onToggle, onConfirmPix, tz }) {
   if (!appointments.length) return (
     <div className="bg-white rounded-2xl shadow-sm py-16 text-center">
       <div className="text-5xl mb-3">📅</div>
@@ -625,14 +636,14 @@ function ListView({ appointments, onAppointmentClick, selected, onToggle, onConf
               onClick={e => e.stopPropagation()}
               className="w-4 h-4 rounded border-gray-300 accent-navy-900 flex-shrink-0" />
             <div className="text-center flex-shrink-0 w-12">
-              <div className="text-xs text-gray-400 font-medium">{format(brt(a.date), 'EEE', { locale: ptBR })}</div>
-              <div className="text-xl font-bold text-navy-900">{format(brt(a.date), 'd')}</div>
-              <div className="text-xs text-gray-400">{format(brt(a.date), 'MMM', { locale: ptBR })}</div>
+              <div className="text-xs text-gray-400 font-medium">{format(toTZ(a.date, tz), 'EEE', { locale: ptBR })}</div>
+              <div className="text-xl font-bold text-navy-900">{format(toTZ(a.date, tz), 'd')}</div>
+              <div className="text-xs text-gray-400">{format(toTZ(a.date, tz), 'MMM', { locale: ptBR })}</div>
             </div>
             <div className={`w-1 h-12 rounded-full flex-shrink-0 ${s.bg}`} />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-navy-900">{a.clientName}</p>
-              <p className="text-sm text-gray-500">{a.specialty} · {format(brt(a.date), 'HH:mm')} ({a.duration}min)
+              <p className="text-sm text-gray-500">{a.specialty} · {format(toTZ(a.date, tz), 'HH:mm')} ({a.duration}min)
                 {a.attendanceNotes && <span className="ml-2 text-xs text-gray-400">· 📝</span>}
               </p>
             </div>
@@ -665,6 +676,13 @@ export default function Appointments() {
   const [selected, setSelected] = useState(new Set())
   const [bulkStatus, setBulkStatus] = useState('')
   const [bulkError, setBulkError] = useState('')
+  const [tz, setTz] = useState('America/Sao_Paulo')
+
+  useEffect(() => {
+    api.get('/settings').then(({ data }) => {
+      if (data?.office?.timezone) setTz(data.office.timezone)
+    }).catch(() => {})
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -808,6 +826,7 @@ export default function Appointments() {
           appointments={filtered}
           onSlotClick={openNew}
           onAppointmentClick={(a) => setModal({ mode: 'edit', appointment: a })}
+          tz={tz}
         />
       ) : (
         <ListView
@@ -816,6 +835,7 @@ export default function Appointments() {
           selected={selected}
           onToggle={toggleSelect}
           onConfirmPix={confirmPix}
+          tz={tz}
         />
       )}
 
@@ -872,6 +892,7 @@ export default function Appointments() {
           onCancelled={cancelled}
           canCancel={true}
           isPro={true}
+          tz={tz}
         />
       )}
     </div>
