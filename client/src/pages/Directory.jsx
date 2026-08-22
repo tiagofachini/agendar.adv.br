@@ -126,7 +126,7 @@ export default function Directory() {
   }, [geoTried, hasFilters])
 
   useEffect(() => {
-    document.title = 'Diretório de Advogados | AgendarAdv'
+    document.title = 'Diretório de Advogados | Agendar.ADV'
 
     let canonical = document.querySelector("link[rel='canonical']")
     if (!canonical) { canonical = document.createElement('link'); canonical.rel = 'canonical'; document.head.appendChild(canonical) }
@@ -149,8 +149,8 @@ export default function Directory() {
     script.textContent = JSON.stringify({
       '@context': 'https://schema.org',
       '@type': 'ItemList',
-      name: 'Diretório de Advogados — AgendarAdv',
-      description: 'Advogados cadastrados no AgendarAdv com agendamento online em todo o Brasil.',
+      name: 'Diretório de Advogados — Agendar.ADV',
+      description: 'Advogados cadastrados no Agendar.ADV com agendamento online em todo o Brasil.',
       url: 'https://agendar.adv.br/advogados',
       numberOfItems: lawyers.length,
       itemListElement: lawyers.slice(0, 50).map((l, i) => ({
@@ -189,9 +189,9 @@ export default function Directory() {
       <nav className="bg-navy-900 shadow-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <img src="/logo.png" alt="AgendarAdv" className="h-9 w-9 object-contain" />
+            <img src="/logo.png" alt="Agendar.ADV" className="h-9 w-9 object-contain" />
             <span className="text-white font-bold text-xl tracking-tight">
-              Agendar<span className="text-brand-500">Adv</span>
+              Agendar.<span className="text-brand-500">ADV</span>
             </span>
           </Link>
           <Link to="/" className="text-brand-400 text-sm font-medium hover:text-brand-300 transition-colors">
@@ -284,7 +284,7 @@ export default function Directory() {
 
       <footer className="border-t border-gray-200 mt-12 py-8 text-center text-xs text-gray-400">
         <p>
-          <Link to="/" className="hover:text-gray-600">AgendarAdv</Link>
+          <Link to="/" className="hover:text-gray-600">Agendar.ADV</Link>
           {' · '}
           <Link to="/termos" className="hover:text-gray-600">Termos</Link>
           {' · '}

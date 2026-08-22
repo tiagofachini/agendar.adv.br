@@ -10,7 +10,7 @@ const cors = {
 const PLATFORM_FEE_RATE = 0.0005 // 0.05%
 const APP_BASE_URL = 'https://agendar.adv.br'
 const RESEND_URL = 'https://api.resend.com/emails'
-const FROM_EMAIL = 'AgendarAdv <notificacoes@agendar.adv.br>'
+const FROM_EMAIL = 'Agendar.ADV <notificacoes@agendar.adv.br>'
 
 async function getGoogleAccessToken(refreshToken: string): Promise<string> {
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -211,9 +211,12 @@ async function handleCheckout(req: Request): Promise<Response> {
         ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Reunião online</td><td style="font-weight:600"><a href="${meetingLink}" style="color:#2563eb">${meetingLink}</a></td></tr>`
         : address ? `<tr><td style="color:#6b7280;padding:6px 0;width:40%">Local</td><td style="font-weight:600">${address}</td></tr>` : ''
       const clientHtml = `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
-        <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
-          <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
-          <p style="color:#a0aec0;margin:8px 0 0">Confirmação de agendamento</p>
+        <div style="background:#0a2070;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+          <div style="display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
+            <img src="https://agendar.adv.br/logo.png" alt="Agendar.ADV" style="height:36px;width:36px;object-fit:contain;vertical-align:middle" />
+            <span style="color:white;font-size:22px;font-weight:700;letter-spacing:-0.5px;vertical-align:middle">Agendar.<span style="color:#48b828">ADV</span></span>
+          </div>
+          <p style="color:#a0aec0;margin:0;font-size:14px">Confirmação de agendamento</p>
         </div>
         <p>Olá! Seu agendamento com <strong>${lawyer.name}</strong> foi recebido.</p>
         <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
@@ -225,14 +228,17 @@ async function handleCheckout(req: Request): Promise<Response> {
           </table>
         </div>
         <p style="color:#f59e0b;font-weight:600">⚠ Aguardando confirmação do pagamento.</p>
-        <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv.</p>
+        <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo Agendar.ADV.</p>
       </body></html>`
       await sendEmail(RESEND_KEY, clientEmail, `Agendamento recebido — ${lawyer.name}`, clientHtml)
       if (s.newBookingByEmail !== false && lawyer.email) {
         const lawyerHtml = `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#111827">
-          <div style="background:#1a1a2e;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
-            <h1 style="color:white;margin:0;font-size:20px">AgendarAdv</h1>
-            <p style="color:#a0aec0;margin:8px 0 0">Novo agendamento (aguardando pagamento)</p>
+          <div style="background:#0a2070;padding:24px;border-radius:12px;text-align:center;margin-bottom:24px">
+            <div style="display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
+              <img src="https://agendar.adv.br/logo.png" alt="Agendar.ADV" style="height:36px;width:36px;object-fit:contain;vertical-align:middle" />
+              <span style="color:white;font-size:22px;font-weight:700;letter-spacing:-0.5px;vertical-align:middle">Agendar.<span style="color:#48b828">ADV</span></span>
+            </div>
+            <p style="color:#a0aec0;margin:0;font-size:14px">Novo agendamento (aguardando pagamento)</p>
           </div>
           <p>Novo agendamento recebido de <strong>${clientName}</strong>.</p>
           <div style="background:#f9fafb;border-radius:12px;padding:20px;margin:20px 0;border:1px solid #e5e7eb">
@@ -244,7 +250,7 @@ async function handleCheckout(req: Request): Promise<Response> {
               <tr><td style="color:#6b7280;padding:6px 0">Área</td><td style="font-weight:600">${specialty}</td></tr>
             </table>
           </div>
-          <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo AgendarAdv.</p>
+          <p style="color:#9ca3af;font-size:12px;margin-top:32px;border-top:1px solid #e5e7eb;padding-top:16px">Enviado automaticamente pelo Agendar.ADV.</p>
         </body></html>`
         await sendEmail(RESEND_KEY, lawyer.email, `Novo agendamento — ${clientName}`, lawyerHtml)
       }

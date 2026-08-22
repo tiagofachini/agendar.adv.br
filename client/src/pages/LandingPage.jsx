@@ -72,9 +72,9 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-40 bg-navy-900 shadow-md">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="AgendarAdv" className="h-9 w-9 object-contain" />
+            <img src="/logo.png" alt="Agendar.ADV" className="h-9 w-9 object-contain" />
             <span className="text-white font-bold text-xl tracking-tight">
-              Agendar<span className="text-brand-500">Adv</span>
+              Agendar.<span className="text-brand-500">ADV</span>
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -142,7 +142,7 @@ export default function LandingPage() {
       {/* Benefícios */}
       <section className="py-20 px-6 bg-white">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-navy-900 mb-3">Com o AgendarAdv, tudo muda</h2>
+          <h2 className="text-3xl font-bold text-center text-navy-900 mb-3">Com o Agendar.ADV, tudo muda</h2>
           <p className="text-center text-gray-500 mb-12">Uma ferramenta. Tudo resolvido.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {BENEFITS.map((b) => (
@@ -241,7 +241,7 @@ export default function LandingPage() {
           </div>
 
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
-            <span>© {new Date().getFullYear()} AgendarAdv — Feito para advogados brasileiros</span>
+            <span>© {new Date().getFullYear()} Agendar.ADV — Feito para advogados brasileiros</span>
             <div className="flex gap-4">
               <Link to="/termos" className="hover:text-gray-300 transition-colors">Termos de Uso</Link>
               <Link to="/privacidade" className="hover:text-gray-300 transition-colors">Política de Privacidade</Link>
@@ -278,7 +278,7 @@ export default function LandingPage() {
                   <div className="text-5xl mb-4">📬</div>
                   <h3 className="font-bold text-navy-900 text-lg mb-2">Você não precisa mais de senha.</h3>
                   <p className="text-gray-600 text-sm leading-relaxed mb-6">
-                    Enviamos um link de acesso para <strong>{form.email}</strong>. Basta clicar no link deste email para entrar no AgendarAdv.
+                    Enviamos um link de acesso para <strong>{form.email}</strong>. Basta clicar no link deste email para entrar no Agendar.ADV.
                   </p>
                   <button onClick={() => setMagicLinkSent(false)} className="text-navy-700 text-sm font-medium hover:underline">
                     Usar outro email

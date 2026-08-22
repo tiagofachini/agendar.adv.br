@@ -439,7 +439,7 @@ function GoogleIntegrationSection({ data, onSaved, banner }) {
           </div>
         </div>
         <p className="text-gray-300 text-sm leading-relaxed mt-3">
-          Conectar sua conta Google transforma o AgendarAdv em uma ferramenta completa: login seguro, agenda sincronizada automaticamente e links de videochamada gerados para cada consulta online — tudo sem configuração adicional.
+          Conectar sua conta Google transforma o Agendar.ADV em uma ferramenta completa: login seguro, agenda sincronizada automaticamente e links de videochamada gerados para cada consulta online — tudo sem configuração adicional.
         </p>
       </div>
 

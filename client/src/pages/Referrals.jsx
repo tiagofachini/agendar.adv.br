@@ -40,7 +40,7 @@ export default function Referrals() {
 
   const whatsappShare = () => {
     if (!data?.link) return
-    const text = `Olá! Estou usando o AgendarAdv para gerenciar minha agenda jurídica. Cadastre-se pelo meu link e me ajude a ganhar um voucher de R$300 para compras online! ${data.link}`
+    const text = `Olá! Estou usando o Agendar.ADV para gerenciar minha agenda jurídica. Cadastre-se pelo meu link e me ajude a ganhar um voucher de R$300 para compras online! ${data.link}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }
 

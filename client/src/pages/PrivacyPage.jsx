@@ -5,9 +5,9 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-navy-900 px-6 h-16 flex items-center">
         <Link to="/" className="flex items-center gap-2">
-          <img src="/logo.png" alt="AgendarAdv" className="h-8 w-8 object-contain" />
+          <img src="/logo.png" alt="Agendar.ADV" className="h-8 w-8 object-contain" />
           <span className="text-white font-bold text-lg">
-            Agendar<span className="text-brand-500">Adv</span>
+            Agendar.<span className="text-brand-500">ADV</span>
           </span>
         </Link>
       </nav>
@@ -21,7 +21,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-navy-900 mb-3">1. Quem somos</h2>
             <p>
-              O AgendarAdv é uma plataforma de gestão para advogados brasileiros. Esta política descreve como
+              O Agendar.ADV é uma plataforma de gestão para advogados brasileiros. Esta política descreve como
               coletamos, usamos, armazenamos e protegemos seus dados pessoais em conformidade com a Lei Geral de
               Proteção de Dados (LGPD — Lei 13.709/2018) e com as políticas de privacidade dos serviços integrados
               à plataforma, incluindo os serviços do Google LLC.
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
             <ul className="list-disc list-inside space-y-1 text-gray-600 mb-4">
               <li>Nome completo, endereço de e-mail e foto de perfil (fornecidos pelo Google OAuth para autenticação)</li>
               <li>Token de autorização para acesso à API do Google Calendar (armazenado de forma segura e criptografada)</li>
-              <li>Dados dos eventos criados pelo AgendarAdv na agenda do advogado: título, data, horário, local e link de videochamada</li>
+              <li>Dados dos eventos criados pelo Agendar.ADV na agenda do advogado: título, data, horário, local e link de videochamada</li>
             </ul>
             <p className="mb-2"><strong>Dados inseridos pelo advogado (sobre seus clientes):</strong></p>
             <ul className="list-disc list-inside space-y-1 text-gray-600">
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-navy-900 mb-3">4. Integração com Serviços Google</h2>
             <p className="mb-3">
-              O AgendarAdv oferece integração opcional com os seguintes serviços do Google LLC. Essa integração
+              O Agendar.ADV oferece integração opcional com os seguintes serviços do Google LLC. Essa integração
               é habilitada exclusivamente pelo advogado, por meio de autorização explícita via OAuth 2.0.
             </p>
 
@@ -87,14 +87,14 @@ export default function PrivacyPage() {
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <p className="font-semibold text-navy-900 mb-1">Google Calendar API</p>
                 <p className="text-gray-600 mb-2">
-                  Com autorização do advogado, o AgendarAdv acessa a API do Google Calendar para:
+                  Com autorização do advogado, o Agendar.ADV acessa a API do Google Calendar para:
                 </p>
                 <ul className="list-disc list-inside space-y-1 text-gray-600">
                   <li><strong>Criar</strong> eventos de consulta jurídica na agenda principal do advogado quando um agendamento é confirmado</li>
                   <li><strong>Incluir</strong> automaticamente links do Google Meet nos eventos criados, para consultas online</li>
                 </ul>
                 <p className="mt-2 text-gray-600">
-                  O AgendarAdv <strong>não lê, não modifica e não exclui</strong> eventos preexistentes na agenda do advogado.
+                  O Agendar.ADV <strong>não lê, não modifica e não exclui</strong> eventos preexistentes na agenda do advogado.
                   O acesso é restrito ao escopo <code className="bg-gray-100 px-1 rounded text-xs">calendar.events</code>,
                   que permite apenas a criação de novos eventos.
                 </p>
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
                 <p className="font-semibold text-navy-900 mb-1">Revogação de acesso</p>
                 <p className="text-gray-600">
                   O advogado pode desconectar a integração com Google a qualquer momento nas Configurações da plataforma
-                  (aba Google). Isso encerra o acesso do AgendarAdv à Google Agenda. O acesso também pode ser revogado
+                  (aba Google). Isso encerra o acesso do Agendar.ADV à Google Agenda. O acesso também pode ser revogado
                   diretamente na conta Google em:{' '}
                   <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer"
                     className="text-navy-700 hover:underline">
@@ -171,7 +171,7 @@ export default function PrivacyPage() {
             <p>
               Os dados são mantidos enquanto a conta estiver ativa. Após o cancelamento da conta, os dados são
               retidos por 30 dias para possibilitar eventual recuperação e, decorrido esse prazo, são excluídos
-              permanentemente dos sistemas do AgendarAdv. Tokens de acesso ao Google são excluídos imediatamente
+              permanentemente dos sistemas do Agendar.ADV. Tokens de acesso ao Google são excluídos imediatamente
               após a desconexão da integração.
             </p>
           </section>
@@ -197,7 +197,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-bold text-navy-900 mb-3">9. Cookies</h2>
             <p>
-              O AgendarAdv utiliza cookies e armazenamento local exclusivamente para fins técnicos: manter a sessão
+              O Agendar.ADV utiliza cookies e armazenamento local exclusivamente para fins técnicos: manter a sessão
               autenticada e armazenar preferências de interface. Não utilizamos cookies de rastreamento ou publicidade.
             </p>
           </section>
@@ -215,7 +215,7 @@ export default function PrivacyPage() {
       </main>
 
       <footer className="border-t border-gray-200 py-6 px-6 text-center text-gray-400 text-xs">
-        © {new Date().getFullYear()} AgendarAdv ·{' '}
+        © {new Date().getFullYear()} Agendar.ADV ·{' '}
         <Link to="/termos" className="hover:text-navy-700 transition-colors">Termos de Uso</Link>
       </footer>
     </div>
